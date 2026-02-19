@@ -35,4 +35,3 @@ async def scan_username(username: str):
         tasks = [check_site(session, p, u, username) for p, u in SITES.items()]
         results = await asyncio.gather(*tasks)
     return results
-吐
