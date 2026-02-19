@@ -13,7 +13,7 @@ if os.name != "nt":
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 setattr(asyncio.sslproto._SSLProtocolTransport, "_start_tls_compatible", True)
-for folder in ["logs", "cache", "cache/clothing", "cache/asset"]:
+for folder in ["logs", "cache", "cache/clothing", "cache/asset", "data"]:
     if not os.path.exists(folder): os.makedirs(folder)
 
 logCollector, modified = logger.AsyncLogCollector("logs/main.log"), True
@@ -106,6 +106,8 @@ for i in range(5): # Rerun server in event of a crash
     except RuntimeError: pass  # Occurs when exited before fully initialized
     except ErrorDict.MissingRequiredConfigs: sync_logging("fatal", f"Missing or malformed configuration options detected!")
     except Exception as e:
+        print(f"FATAL EXCEPTION: {type(e)} | {e}")
+        traceback.print_exc()
         sync_logging("fatal", f"A fatal error occurred during runtime: {type(e)} | {traceback.format_exc()}")
     if i < 4: sync_logging("warn", f"Server crash detected. Restarting server...")
 
