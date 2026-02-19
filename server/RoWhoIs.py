@@ -7,9 +7,42 @@ from typing import Any, Optional, Literal
 
 def load_config():
     global staffIds, optOut, userBlocklist, emojiTable, assetBlocklist, whoIsDonors, productionMode, botToken, eggEnabled, subscriptionBypass
-    with open('config.json', 'r') as configfile:
-        config = json.load(configfile)
-        configfile.close()
+    try:
+        with open('config.json', 'r') as configfile:
+            config = json.load(configfile)
+            configfile.close()
+    except FileNotFoundError:
+        import os
+        config = {
+            "RoWhoIs": {
+                "production_mode": True,
+                "admin_ids": [],
+                "opt_out": [],
+                "banned_users": [],
+                "banned_assets": [],
+                "donors": [],
+                "easter_egg_enabled": False,
+                "subscription_bypass": False
+            },
+            "Authentication": {
+                "production": os.environ.get("TOKEN"),
+                "testing": os.environ.get("TOKEN"),
+                "webhook": os.environ.get("WEBHOOK_URL", ""),
+                "roblosecurity": os.environ.get("ROBLOSECURITY", ""),
+                "api_key": os.environ.get("ROBLOX_API_KEY", ""),
+                "topgg": "",
+                "dbl": ""
+            },
+            "Emojis": {},
+            "Proxying": {
+                "proxying_enabled": False,
+                "proxy_urls": [],
+                "username": "",
+                "password": "",
+                "log_proxying": False
+            }
+        }
+    
     productionMode, staffIds, optOut, userBlocklist, assetBlocklist, whoIsDonors, eggEnabled, subscriptionBypass = config['RoWhoIs']['production_mode'], config['RoWhoIs']['admin_ids'], config['RoWhoIs']['opt_out'], config['RoWhoIs']['banned_users'], config['RoWhoIs']['banned_assets'], config['RoWhoIs']['donors'], config['RoWhoIs']['easter_egg_enabled'], config['RoWhoIs']['subscription_bypass']
     botToken = {"topgg": config['Authentication']['topgg'], "dbl": config['Authentication']['dbl']}
     emojiTable = {key: config['Emojis'][key] for key in config['Emojis']}

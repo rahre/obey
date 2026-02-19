@@ -34,9 +34,25 @@ except subprocess.CalledProcessError:
         version = short_commit_id.decode('utf-8')
     except subprocess.CalledProcessError: version = "0"  # Assume not part of a git workspace
 
-with open('config.json', 'r') as configfile:
-    config = json.load(configfile)
-    configfile.close()
+try:
+    with open('config.json', 'r') as configfile:
+        config = json.load(configfile)
+        configfile.close()
+except FileNotFoundError:
+    # Fallback for Railway/Environment Variables
+    config = {
+        "RoWhoIs": {
+            "production_mode": True
+        },
+        "Authentication": {
+            "production": os.environ.get("TOKEN"),
+            "testing": os.environ.get("TOKEN"),
+            "webhook": os.environ.get("WEBHOOK_URL", "")
+        },
+        "Roblox": {
+            "security": os.environ.get("ROBLOSECURITY", "")
+        }
+    }
 
 logger.display_banner(version, config['RoWhoIs']['production_mode'], modified)
 
