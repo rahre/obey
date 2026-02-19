@@ -72,6 +72,12 @@ except FileNotFoundError:
 
 logger.display_banner(version, config['RoWhoIs']['production_mode'], modified)
 
+# Diagnostics for Railway
+if not os.environ.get("TOKEN"):
+    sync_logging("fatal", "CRITICAL ERROR: 'TOKEN' environment variable is missing! The bot cannot connect without a token.")
+if not os.environ.get("ROBLOSECURITY"):
+    sync_logging("warn", "WARNING: 'ROBLOSECURITY' environment variable is missing. Roblox lookups requiring authentication may fail.")
+
 for file in ["server/Roquest.py", "server/RoWhoIs.py", "utils/ErrorDict.py", "utils/gUtils.py"]:
     if not os.path.exists(file):
         sync_logging("fatal", f"Missing {file}! RoWhoIs will not be able to initialize.")
@@ -107,6 +113,9 @@ for i in range(5): # Rerun server in event of a crash
     except RuntimeError: pass  # Occurs when exited before fully initialized
     except ErrorDict.MissingRequiredConfigs: sync_logging("fatal", f"Missing or malformed configuration options detected!")
     except Exception as e:
+        emsg = str(e)
+        if "PrivilegedIntentsRequiredError" in emsg or "privileged intents" in emsg.lower():
+            sync_logging("fatal", "DISCORD ERROR: Privileged Intents Required! You MUST enable 'Presence Intent' and 'Server Members Intent' in the Discord Developer Portal (under the Bot tab).")
         print(f"FATAL EXCEPTION: {type(e)} | {e}")
         traceback.print_exc()
         sync_logging("fatal", f"A fatal error occurred during runtime: {type(e)} | {traceback.format_exc()}")
