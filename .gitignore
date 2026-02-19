@@ -1,0 +1,19 @@
+# Aegis OSINT Gitignore
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+logs/
+cache/
+data/*.db
+data/*.sqlite
+config.json
+.vscode/
+.idea/
+*.log
