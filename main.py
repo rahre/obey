@@ -42,21 +42,37 @@ except FileNotFoundError:
     # Fallback for Railway/Environment Variables
     config = {
         "RoWhoIs": {
-            "production_mode": True
+            "production_mode": True,
+            "admin_ids": [],
+            "opt_out": [],
+            "banned_users": [],
+            "banned_assets": [],
+            "donors": [],
+            "easter_egg_enabled": False,
+            "subscription_bypass": False
         },
         "Authentication": {
             "production": os.environ.get("TOKEN"),
             "testing": os.environ.get("TOKEN"),
-            "webhook": os.environ.get("WEBHOOK_URL", "")
+            "webhook": os.environ.get("WEBHOOK_URL", ""),
+            "roblosecurity": os.environ.get("ROBLOSECURITY", ""),
+            "api_key": os.environ.get("ROBLOX_API_KEY", ""),
+            "topgg": "",
+            "dbl": ""
         },
-        "Roblox": {
-            "security": os.environ.get("ROBLOSECURITY", "")
+        "Emojis": {},
+        "Proxying": {
+            "proxying_enabled": False,
+            "proxy_urls": [],
+            "username": "",
+            "password": "",
+            "log_proxying": False
         }
     }
 
 logger.display_banner(version, config['RoWhoIs']['production_mode'], modified)
 
-for file in ["server/Roquest.py", "server/RoWhoIs.py", "config.json", "utils/ErrorDict.py", "utils/gUtils.py"]:
+for file in ["server/Roquest.py", "server/RoWhoIs.py", "utils/ErrorDict.py", "utils/gUtils.py"]:
     if not os.path.exists(file):
         sync_logging("fatal", f"Missing {file}! RoWhoIs will not be able to initialize.")
         exit(1)
