@@ -69,7 +69,7 @@ class RoWhoIs(hikari.GatewayBot):
         config = load_config()
         super().__init__(intents=intents, token=config['Authentication']['production' if productionMode else 'testing'], banner=None)
 
-client = RoWhoIs(intents=hikari.Intents.ALL_UNPRIVILEGED | hikari.Intents.GUILD_MEMBERS | hikari.Intents.GUILD_INVITES)
+client = RoWhoIs(intents=hikari.Intents.ALL_UNPRIVILEGED | hikari.Intents.GUILD_MEMBERS | hikari.Intents.GUILD_INVITES | hikari.Intents.GUILD_PRESENCES)
 invite_tracker = InviteTracker.InviteTracker(client)
 group_spy = GroupSpy.GroupSpy(client)
 activity_tracker = ActivityTracker.ActivityTracker(client)

@@ -80,6 +80,7 @@ for file in ["server/Roquest.py", "server/RoWhoIs.py", "utils/ErrorDict.py", "ut
 
 def push_status(enabling: bool, webhook_token: str) -> None:
     """Pushes to the webhook the initialization status of RoWhoIs"""
+    if not webhook_token: return
     try:
         async def push(enabling: bool, webhook_token: str) -> None:
             async with aiohttp.ClientSession() as session: await session.request("POST", webhook_token, json={"username": "RoWhoIs Status", "avatar_url": "https://rowhois.com//rwi-pfp.png", "embeds": [{"title": "RoWhoIs Status", "color": 65293 if enabling else 0xFF0000, "description": f"RoWhoIs is now {'online' if enabling else 'offline'}!"}]})
