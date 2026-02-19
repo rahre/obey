@@ -55,9 +55,14 @@ def run(version: str) -> bool:
         global shortHash, uptime
         shortHash = version
         load_config()
-        loop.create_task(input_listener())
-        uptime = time.time()
         globals.init(eggEnabled=eggEnabled)
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(input_listener())
+        except RuntimeError:
+            # Fallback for older asyncio or non-running state
+            asyncio.get_event_loop().create_task(input_listener())
+        uptime = time.time()
         client.run(close_loop=False)
         return True
     except KeyError: raise ErrorDict.MissingRequiredConfigs
@@ -75,7 +80,6 @@ group_spy = GroupSpy.GroupSpy(client)
 activity_tracker = ActivityTracker.ActivityTracker(client)
 shardAnalytics = gUtils.ShardAnalytics(0, False)
 log_collector = logger.AsyncLogCollector("logs/main.log")
-loop = asyncio.get_event_loop()
 
 @client.listen(hikari.InteractionCreateEvent)
 async def wrapped_on_interaction_create(event: hikari.InteractionCreateEvent): await app_commands.interaction_runner(event)
@@ -85,6 +89,7 @@ async def start(event: hikari.StartedEvent):
     await log_collector.info(f"Initialized! Syncing global command tree", initiator="RoWhoIs.start")
     await Archives.init_db()
     await app_commands.sync_app_commands(client)
+    loop = asyncio.get_running_loop()
     loop.create_task(group_spy.spy_loop())
     loop.create_task(activity_tracker.tracker_loop())
 
@@ -99,6 +104,9 @@ async def input_listener() -> None:
     while True:
         try:
             command = await aioconsole.ainput("")
+            if not command:
+                await asyncio.sleep(1)
+                continue
             if command == "help": print("Commands: down, up, shards, servers, users, cache, cflush, lflush, flush, reload")
             if command == "down": raise KeyboardInterrupt
             if command == "up": await log_collector.info(f"Uptime: {await gUtils.ret_uptime(uptime)}", initiator="RoWhoIs.input_listener")

@@ -89,8 +89,17 @@ def push_status(enabling: bool, webhook_token: str) -> None:
     if not webhook_token: return
     try:
         async def push(enabling: bool, webhook_token: str) -> None:
-            async with aiohttp.ClientSession() as session: await session.request("POST", webhook_token, json={"username": "RoWhoIs Status", "avatar_url": "https://rowhois.com//rwi-pfp.png", "embeds": [{"title": "RoWhoIs Status", "color": 65293 if enabling else 0xFF0000, "description": f"RoWhoIs is now {'online' if enabling else 'offline'}!"}]})
-        asyncio.new_event_loop().run_until_complete(push(enabling, webhook_token))
+            async with aiohttp.ClientSession() as session:
+                async with session.request("POST", webhook_token, json={"username": "RoWhoIs Status", "avatar_url": "https://rowhois.com//rwi-pfp.png", "embeds": [{"title": "RoWhoIs Status", "color": 65293 if enabling else 0xFF0000, "description": f"RoWhoIs is now {'online' if enabling else 'offline'}!"}]}) as r:
+                    pass
+        # Use asyncio.run for cleaner entry if no loop is running, or safe fallback
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(push(enabling, webhook_token))
+                return
+        except RuntimeError: pass
+        asyncio.run(push(enabling, webhook_token))
     except Exception as e: sync_logging("error", f"Failed to push to status webhook: {e}")
 
 try:
@@ -110,7 +119,9 @@ for i in range(5): # Rerun server in event of a crash
         if RoWhoIs.run(version) is True: break
     except KeyboardInterrupt: break
     except asyncio.exceptions.CancelledError: break
-    except RuntimeError: pass  # Occurs when exited before fully initialized
+    except RuntimeError as e:
+        sync_logging("error", f"ASYNCIO RUNTIME ERROR: {e}")
+        traceback.print_exc()
     except ErrorDict.MissingRequiredConfigs: sync_logging("fatal", f"Missing or malformed configuration options detected!")
     except Exception as e:
         emsg = str(e)

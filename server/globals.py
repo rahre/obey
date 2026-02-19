@@ -43,12 +43,17 @@ async def coro_fetch_followers() -> None:
 
 def init(eggEnabled: bool) -> None:
     """Estantiates the global coroutines"""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.get_event_loop()
+    
+    loop.create_task(coro_heartbeat())
+    loop.create_task(coro_update_rolidata())
     if eggEnabled: loop.create_task(coro_fetch_followers())
     return
 
 async def returnProxies() -> list[tuple[str, str]]:
     return [await Roquest.ret_on_prox(), await Roquest.ret_glob_proxies()]
 
-loop = asyncio.get_event_loop()
-loop.create_task(coro_heartbeat())
-loop.create_task(coro_update_rolidata())
+# loop initialization moved to init()
