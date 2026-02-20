@@ -125,11 +125,18 @@ for i in range(5): # Rerun server in event of a crash
     except ErrorDict.MissingRequiredConfigs: sync_logging("fatal", f"Missing or malformed configuration options detected!")
     except BaseException as e:
         emsg = str(e)
+        crash_details = f"FATAL EXCEPTION [{type(e).__name__}]: {e}\n{traceback.format_exc()}"
+        print("!!!" * 20)
+        print(crash_details)
+        print("!!!" * 20)
+        
         if "PrivilegedIntentsRequiredError" in emsg or "privileged intents" in emsg.lower():
             sync_logging("fatal", "DISCORD ERROR: Privileged Intents Required! You MUST enable 'Presence Intent' and 'Server Members Intent' in the Discord Developer Portal (under the Bot tab).")
-        print(f"FATAL EXCEPTION [{type(e).__name__}]: {e}")
-        traceback.print_exc()
-        sync_logging("fatal", f"CRITICAL CRASH [{type(e).__name__}]: {e}\n{traceback.format_exc()}")
+        
+        try:
+            sync_logging("fatal", f"CRITICAL CRASH: {crash_details}")
+        except:
+            print("Logger failed to report crash. Proceeding with raw logs.")
     if i < 4: sync_logging("warn", f"Server crash detected. Restarting server...")
 
 sync_logging("info", "RoWhoIs down")
