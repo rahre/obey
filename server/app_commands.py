@@ -77,16 +77,34 @@ async def check_cooldown(interaction: hikari.CommandInteraction, intensity: Lite
 async def sync_app_commands(client: hikari.GatewayBot) -> None:
     """Syncs the global app command tree with the Discord API."""
     try:
+        print("Starting command sync...")
         existingCommands = await client.rest.fetch_application_commands(client.get_me().id)
         existingCommandsDict = {cmd.name: cmd for cmd in existingCommands}
+        print(f"Found {len(existingCommands)} existing commands.")
+        
+        # Create/Update Loop
         for command in command_tree.values():
             if command.name in existingCommandsDict:
                 existingCommand = existingCommandsDict[command.name]
-                if existingCommand.description != command.description or existingCommand.options != command.options: await client.rest.edit_application_command(client.get_me().id, existingCommand.id, name=command.name, description=command.description, options=command.options)
-            else: await client.rest.create_slash_command(application=client.get_me().id, name=command.name, description=command.description, options=command.options)
+                if existingCommand.description != command.description or existingCommand.options != command.options: 
+                    await client.rest.edit_application_application_command(client.get_me().id, existingCommand.id, name=command.name, description=command.description, options=command.options)
+            else: 
+                await client.rest.create_slash_command(application=client.get_me().id, name=command.name, description=command.description, options=command.options)
+        
+        # Deletion Loop - Robust
         for command_name, command in existingCommandsDict.items():
-            if command_name not in command_tree: await client.rest.delete_application_command(client.get_me().id, command.id)
-    except Exception as e: await log_collector.error(f"Error syncing app commands: {e}", initiator="RoWhoIs.sync_app_commands")
+            if command_name not in command_tree:
+                try:
+                    await client.rest.delete_application_command(client.get_me().id, command.id)
+                    print(f"Deleted old command: {command_name}")
+                except Exception as del_err:
+                    print(f"Failed to delete {command_name}: {del_err}")
+                    await log_collector.error(f"Failed to delete {command_name}: {del_err}", initiator="RoWhoIs.sync_app_commands")
+
+        print("Command sync completed.")
+    except Exception as e: 
+        print(f"Global sync error: {e}")
+        await log_collector.error(f"Error syncing app commands: {e}", initiator="RoWhoIs.sync_app_commands")
 
 class Command:
     global command_tree
