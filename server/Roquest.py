@@ -17,8 +17,8 @@ def initialize(config, version: str, modded: bool):
         BaseUserAuth = typedefs.UserAuth(config["Authentication"]["roblosecurity"], "", config["Authentication"]["api_key"])
         uasString = f"RoWhoIs-server/{version}; {'modified' if modded else 'genuine'} ({'prod-mode' if productionMode else 'testing-mode'})"
         currentProxy, poolProxies = typedefs.Proxy(None), typedefs.Proxies(globProxies.enabled, [])
-        if globProxies.enabled: loop.create_task(proxy_handler())
-        loop.create_task(validate_cookie())
+        if globProxies.enabled: asyncio.get_event_loop().create_task(proxy_handler())
+        asyncio.get_event_loop().create_task(validate_cookie())
     except KeyError: raise ErrorDict.MissingRequiredConfigs
 
 async def proxy_handler() -> None:
@@ -78,7 +78,7 @@ async def validate_cookie() -> None:
     """Validates the RSEC value from config.json"""
     async with aiohttp.ClientSession(cookies={".roblosecurity": BaseUserAuth.token}, headers={"User-Agent": uasString}) as main_session:
         async with main_session.get("https://users.roblox.com/v1/users/authenticated") as resp:
-            if resp.status == 200: await loop.create_task(token_renewal(True))
+            if resp.status == 200: await (asyncio.get_running_loop() if asyncio.get_event_loop().is_running() else asyncio.get_event_loop()).create_task(token_renewal(True))
             else: await log_collector.error("Invalid ROBLOSECURITY cookie. RoWhoIs will not function properly.", initiator="RoWhoIs.validate_cookie")
 
 async def token_renewal(automated: bool = False) -> None:
@@ -96,7 +96,7 @@ async def token_renewal(automated: bool = False) -> None:
             if automated: break
             await asyncio.sleep(50)
 
-loop = asyncio.get_event_loop()
+# loop initialization moved to functions
 
 async def Roquest(method: str, node: str, endpoint: str, shard_id: int = None, failretry=False, bypass_proxy: bool = False, **kwargs) -> tuple[int, Any]:
     """Performs a request to the Roblox API. Returns a tuple with the status code and the response data.
