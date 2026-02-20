@@ -24,15 +24,15 @@ def sync_logging(errorlevel: str, errorcontent: str) -> None:
     asyncio.new_event_loop().run_until_complete(log_functions[errorlevel]())
 
 try:
-    tag = subprocess.check_output(['git', 'tag', '--contains', 'HEAD']).strip()
+    tag = subprocess.check_output(['git', 'tag', '--contains', 'HEAD'], stderr=subprocess.DEVNULL).strip()
     version = tag.decode('utf-8') if tag else None
     if version is None: raise subprocess.CalledProcessError(1, "git tag --contains HEAD")
     else: modified = False
-except subprocess.CalledProcessError:
+except (subprocess.CalledProcessError, FileNotFoundError):
     try: # Fallback, rely on short hash
-        short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip()
+        short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], stderr=subprocess.DEVNULL).strip()
         version = short_commit_id.decode('utf-8')
-    except subprocess.CalledProcessError: version = "0"  # Assume not part of a git workspace
+    except (subprocess.CalledProcessError, FileNotFoundError): version = "0"  # Assume not part of a git workspace
 
 try:
     with open('config.json', 'r') as configfile:
