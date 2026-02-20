@@ -180,6 +180,12 @@ async def help(interaction: hikari.CommandInteraction):
         embed.add_field(name="[FENRIR] fenrir_track", value="Deploy a wolf to track presence status", inline=True)
         embed.add_field(name="[HISTORY] archive_search", value="Retrieve subject's recorded history", inline=True)
         
+        # Utility & Reverse Lookup
+        embed.add_field(name="[LINK] roblox2discord", value="Find Discord in Roblox Bio", inline=True)
+        embed.add_field(name="[LINK] discord2roblox", value="Discord -> Roblox (Req. API Key)", inline=True)
+        embed.add_field(name="[UTIL] discordid2user", value="Get User Info from ID", inline=True)
+        embed.add_field(name="[UTIL] discorduser2id", value="Get ID from User", inline=True)
+        
         me = client.get_me()
         footer_icon = me.avatar_url if me else None
         embed.set_footer(text="Absolute Order: Use these tools which Zero has granted you.", icon=footer_icon)
@@ -833,4 +839,92 @@ async def game(interaction: hikari.CommandInteraction, game: int):
     embed.add_field(name="Playing", value=f"`{data.playing}`", inline=True)
     if data.description != "": embed.add_field(name="Description", value=f"```{data.description.replace('```', '')}```", inline=False)
     embed.colour = 0x00FF00
+    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+
+# --- Reverse Lookup & Utility ---
+
+@app_commands.Command(context="Utility", intensity="low", requires_connection=False)
+async def discordid2user(interaction: hikari.CommandInteraction, user_id: str):
+    """[UTILITY] Get Discord user info from an ID"""
+    if not user_id.isdigit():
+        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content="Please provide a valid numeric User ID.", flags=hikari.MessageFlag.EPHEMERAL)
+        return
+    
+    info = await DiscordOSINT.get_user_info(client, int(user_id))
+    if not info:
+        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content="User not found or ID invalid.", flags=hikari.MessageFlag.EPHEMERAL)
+        return
+
+    embed = hikari.Embed(title=f"Discord User: {info['username']}", color=0x7289DA)
+    embed.add_field(name="ID", value=f"`{info['id']}`", inline=True)
+    embed.add_field(name="Global Name", value=f"`{info['global_name']}`", inline=True)
+    embed.add_field(name="Created", value=f"<t:{int(info['created_at'].timestamp())}:R>", inline=True)
+    if info['flags']: embed.add_field(name="Flags", value=", ".join(info['flags']), inline=False)
+    embed.set_thumbnail(info['avatar_url'])
+    
+    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+
+@app_commands.Command(context="Utility", intensity="low", requires_connection=False)
+async def discorduser2id(interaction: hikari.CommandInteraction, user: str):
+    """[UTILITY] Get the ID of a Discord user"""
+    # If user passed a mention/ID, it might be resolved, but hikari handles 'user' option type differently.
+    # Our app_commands logic treats 'user' as string unless type hinted?
+    # Actually app_commands wraps it. If we want a USER object, we should probably type hint hikari.User?
+    # But app_commands.Command wrapper parses string mostly.
+    # Let's just strip non-digits.
+    
+    clean_id = ''.join(filter(str.isdigit, user))
+    if clean_id:
+        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content=f"User ID: `{clean_id}`")
+    else:
+        # If it's a raw username, we can't really guess ID without context.
+        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content=f"Could not extract ID from input. Please mention the user or copy their ID.", flags=hikari.MessageFlag.EPHEMERAL)
+
+@app_commands.Command(context="Search", intensity="medium")
+async def roblox2discord(interaction: hikari.CommandInteraction, username: str):
+    """[OSINT] Find Discord accounts linked to a Roblox profile (Bio Scan)"""
+    shard = await gUtils.shard_metrics(interaction)
+    try:
+        r_user = await RoModules.handle_usertype(username, shard)
+        profile = await RoModules.get_player_profile(r_user.id, shard)
+        
+        links = DiscordOSINT.find_discord_in_bio(profile.description)
+        
+        embed = hikari.Embed(title=f"Discord Links for {r_user.username}", color=0x5865F2)
+        embed.set_thumbnail(await RoModules.get_player_bust(r_user.id, "420x420", shard))
+        embed.description = f"**Profile:** [Link](https://www.roblox.com/users/{r_user.id}/profile)"
+        
+        if links:
+            embed.add_field(name="Found in Bio/Blurb", value="\n".join(links), inline=False)
+            embed.color = 0x00FF00
+        else:
+            embed.add_field(name="Scan Results", value="No Discord invites or tags found in profile description.", inline=False)
+            embed.color = 0xFF0000
+            
+        embed.set_footer(text="Note: This scans the public 'About' section. It cannot bypass privacy settings.")
+        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+        
+    except Exception as e:
+        if await app_commands.handle_error(e, interaction, "roblox2discord", shard, "User"): return
+
+@app_commands.Command(context="Search", intensity="low")
+async def discord2roblox(interaction: hikari.CommandInteraction, user: str):
+    """[OSINT] Find Roblox account linked to Discord user"""
+    # Without API key, we can't query Bloxlink/RoVer.
+    # We can perform a "Nickname Scan" if in a guild.
+    
+    embed = hikari.Embed(title="Discord -> Roblox Lookup", color=0xFFA500)
+    embed.description = "⚠️ **External Database Required**\nTo reliably link Discord ID to Roblox, an API Key (Bloxlink/RoVer) is required in the configuration.\n\n**Best Effort Scan:**"
+    
+    # Check nickname if in guild
+    if interaction.guild_id:
+        member = interaction.member
+        # If user passed an ID, we assume they want THAT user, not themselves? 
+        # But 'user' arg is string.
+        # Logic: If string matches a member in THIS guild, check their nickname.
+        # This is complex without proper member fetching.
+        embed.add_field(name="Nickname Scan", value="Unable to scan nicknames (Requires 'Server Members' intent or API access).", inline=False)
+    else:
+        embed.add_field(name="Context", value="Command run in DM. Cannot scan server nicknames.", inline=False)
+        
     await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)

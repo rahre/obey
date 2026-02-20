@@ -38,7 +38,30 @@ async def get_user_info(client: hikari.GatewayBot, user_id: int) -> Optional[dic
             "is_bot": user.is_bot,
             "flags": flags
         }
-    except hikari.errors.NotFoundError:
-        return None
     except Exception:
         return None
+
+def find_discord_in_bio(bio: str) -> list[str]:
+    """Scans a text for Discord invites or usernames."""
+    import re
+    # Patterns for discord.gg/code and username#1234
+    invite_pattern = r"(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li)|discord(?:app)?\.com/invite)/([a-zA-Z0-9]+)"
+    
+    # Simple tag pattern (Note: Discord uses unique usernames now, so tags are legacy/display names)
+    # matching "name#1234"
+    legacy_tag_pattern = r"(\b\w+#\d{4}\b)"
+    
+    # New username pattern (just word characters, strict to avoid false positives)
+    # We look for "Discord: name" or "dc: name"
+    username_pattern = r"(?:Discord|dc|disc|tag):\s*([a-z0-9_.]+)"
+
+    invites = re.findall(invite_pattern, bio)
+    tags = re.findall(legacy_tag_pattern, bio)
+    usernames = re.findall(username_pattern, bio, re.IGNORECASE)
+
+    results = []
+    if invites: results.extend([f"Invite: {code}" for code in invites])
+    if tags: results.extend([f"Legacy Tag: {tag}" for tag in tags])
+    if usernames: results.extend([f"Username: {name}" for name in usernames])
+    
+    return list(set(results))
