@@ -175,7 +175,9 @@ async def help(interaction: hikari.CommandInteraction):
     embed.add_field(name="[FENRIR] fenrir_track", value="Deploy a wolf to track presence status", inline=True)
     embed.add_field(name="[HISTORY] archive_search", value="Retrieve subject's recorded history", inline=True)
     
-    embed.set_footer(text="Absolute Order: Use these tools which Zero has granted you.", icon=client.get_me().avatar_url)
+    me = client.get_me()
+    footer_icon = me.avatar_url if me else None
+    embed.set_footer(text="Absolute Order: Use these tools which Zero has granted you.", icon=footer_icon)
     await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
 
 @app_commands.Command(context="Command", intensity="low", requires_connection=False)
