@@ -87,7 +87,7 @@ async def sync_app_commands(client: hikari.GatewayBot) -> None:
             if command.name in existingCommandsDict:
                 existingCommand = existingCommandsDict[command.name]
                 if existingCommand.description != command.description or existingCommand.options != command.options: 
-                    await client.rest.edit_application_application_command(client.get_me().id, existingCommand.id, name=command.name, description=command.description, options=command.options)
+                    await client.rest.edit_application_command(client.get_me().id, existingCommand.id, name=command.name, description=command.description, options=command.options)
             else: 
                 await client.rest.create_slash_command(application=client.get_me().id, name=command.name, description=command.description, options=command.options)
         
