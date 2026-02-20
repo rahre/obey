@@ -55,12 +55,6 @@ def run(version: str) -> bool:
         global shortHash, uptime
         shortHash = version
         load_config()
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(input_listener())
-        except RuntimeError:
-            # Fallback for older asyncio or non-running state
-            asyncio.get_event_loop().create_task(input_listener())
         uptime = time.time()
         client.run(close_loop=False)
         return True
@@ -93,6 +87,7 @@ async def start(event: hikari.StartedEvent):
     loop = asyncio.get_running_loop()
     loop.create_task(group_spy.spy_loop())
     loop.create_task(activity_tracker.tracker_loop())
+    loop.create_task(input_listener())
 
 @client.listen(hikari.ShardConnectedEvent)
 async def connect(event: hikari.ShardConnectedEvent):
