@@ -46,6 +46,7 @@ def init(eggEnabled: bool) -> None:
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
+        # Hikari has not started the loop yet, get the default or fail
         loop = asyncio.get_event_loop()
     
     loop.create_task(coro_heartbeat())

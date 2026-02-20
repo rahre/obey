@@ -82,7 +82,7 @@ async def validate_cookie() -> None:
     """Validates the RSEC value from config.json"""
     async with aiohttp.ClientSession(cookies={".roblosecurity": BaseUserAuth.token}, headers={"User-Agent": uasString}) as main_session:
         async with main_session.get("https://users.roblox.com/v1/users/authenticated") as resp:
-            if resp.status == 200: await (asyncio.get_running_loop() if asyncio.get_event_loop().is_running() else asyncio.get_event_loop()).create_task(token_renewal(True))
+            if resp.status == 200: asyncio.create_task(token_renewal(True))
             else: await log_collector.error("Invalid ROBLOSECURITY cookie. RoWhoIs will not function properly.", initiator="RoWhoIs.validate_cookie")
 
 async def token_renewal(automated: bool = False) -> None:
