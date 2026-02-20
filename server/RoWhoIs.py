@@ -55,7 +55,6 @@ def run(version: str) -> bool:
         global shortHash, uptime
         shortHash = version
         load_config()
-        globals.init(eggEnabled=eggEnabled)
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(input_listener())
@@ -87,6 +86,8 @@ async def wrapped_on_interaction_create(event: hikari.InteractionCreateEvent): a
 @client.listen(hikari.StartedEvent)
 async def start(event: hikari.StartedEvent):
     await log_collector.info(f"Initialized! Syncing global command tree", initiator="RoWhoIs.start")
+    globals.init(eggEnabled=eggEnabled)
+    await Roquest.start_background_tasks()
     await Archives.init_db()
     await app_commands.sync_app_commands(client)
     loop = asyncio.get_running_loop()

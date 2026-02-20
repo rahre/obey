@@ -17,9 +17,13 @@ def initialize(config, version: str, modded: bool):
         BaseUserAuth = typedefs.UserAuth(config["Authentication"]["roblosecurity"], "", config["Authentication"]["api_key"])
         uasString = f"RoWhoIs-server/{version}; {'modified' if modded else 'genuine'} ({'prod-mode' if productionMode else 'testing-mode'})"
         currentProxy, poolProxies = typedefs.Proxy(None), typedefs.Proxies(globProxies.enabled, [])
-        if globProxies.enabled: asyncio.get_event_loop().create_task(proxy_handler())
-        asyncio.get_event_loop().create_task(validate_cookie())
     except KeyError: raise ErrorDict.MissingRequiredConfigs
+
+async def start_background_tasks():
+    """Starts the background tasks for proxying and cookie validation."""
+    if globProxies.enabled: 
+        asyncio.create_task(proxy_handler())
+    asyncio.create_task(validate_cookie())
 
 async def proxy_handler() -> None:
     """Determines what proxies are usable by the server"""
