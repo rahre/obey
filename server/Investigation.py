@@ -59,4 +59,3 @@ async def map_friends(user_id: int, shard_id: int = 0):
             "display_name": f['displayName']
         })
     return associates
-吐
