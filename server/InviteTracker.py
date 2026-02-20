@@ -4,6 +4,7 @@ Theme: Eye of Geass
 """
 import hikari
 import logging
+from typing import Optional
 
 class InviteTracker:
     def __init__(self, client: hikari.GatewayBot):
