@@ -244,7 +244,7 @@ async def username(interaction: hikari.CommandInteraction, userid: int, download
 
 @app_commands.Command(context="User", intensity="low", requires_connection=False)
 async def geass_lookup(interaction: hikari.CommandInteraction, user_id: str):
-    """[ULTIMATE OSINT] Activate the Eye of Geass to reveal a Discord user's true nature."""
+    """[DISCORD OSINT] Reveal a Discord user's creation date, flags, and origin."""
     if not user_id.isdigit():
         await interaction.create_initial_response(content="The target's ID must be numerical.", flags=hikari.MessageFlag.EPHEMERAL)
         return
@@ -279,31 +279,9 @@ async def geass_lookup(interaction: hikari.CommandInteraction, user_id: str):
     
     await interaction.edit_initial_response(embed=embed)
 
-@app_commands.Command(context="User", intensity="low", requires_connection=False)
-async def eye_of_geass(interaction: hikari.CommandInteraction, user_id: str):
-    """[INVITE OSINT] Peer through the Eye of Geass to unveil the origins of a subject's arrival."""
-    if not user_id.isdigit():
-        await interaction.create_initial_response(content="The target's ID must be numerical.", flags=hikari.MessageFlag.EPHEMERAL)
-        return
-    
-    # In a real scenario, we'd need a database to store who joined with what invite.
-    # For now, we'll provide what we can from the current session or general info.
-    embed = hikari.Embed(title="EYE OF GEASS: JOIN ANALYSIS", color=0x990000)
-    embed.description = "The Geass is searching for the subject's point of entry..."
-    
-    # We'll just show account age for now as a fallback, 
-    # and explain that real-time tracking is active for new joins.
-    info = await DiscordOSINT.get_user_info(client, int(user_id))
-    if info:
-        embed.add_field(name="Account Creation", value=f"`{info['created_at'].strftime('%Y-%m-%d')}`", inline=True)
-        embed.add_field(name="Current Status", value="`Observing...`", inline=True)
-        embed.set_footer(text="Join intelligence is logged in the Black Knights' archives.")
-    
-    await interaction.create_initial_response(embed=embed)
-
 @app_commands.Command(context="Group", intensity="high", requires_connection=True)
 async def black_knights_spy(interaction: hikari.CommandInteraction, group_id: int, channel_id: str = None):
-    """[GROUP ESPIONAGE] Deploy a Black Knight operative to monitor group membership changes."""
+    """[GROUP SPY] Monitor a Roblox group for new members and leaves."""
     target_channel = int(channel_id) if channel_id else interaction.channel_id
     
     await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
@@ -318,7 +296,7 @@ async def black_knights_spy(interaction: hikari.CommandInteraction, group_id: in
 
 @app_commands.Command(context="Investigation", intensity="high", requires_connection=True)
 async def absolute_order(interaction: hikari.CommandInteraction, target1: str, target2: str):
-    """[ALT DETECTION] Issue an Absolute Order to compare two subjects and reveal their connection."""
+    """[ALT CHECK] Compare two Roblox accounts to detect if they are the same person."""
     await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
     shard = await gUtils.shard_metrics(interaction)
     
@@ -347,7 +325,7 @@ async def absolute_order(interaction: hikari.CommandInteraction, target1: str, t
 
 @app_commands.Command(context="Archive", intensity="low", requires_connection=False)
 async def archive_search(interaction: hikari.CommandInteraction, target: str):
-    """[ARCHIVE RETRIEVAL] Access the Black Knights' archives to retrieve a subject's recorded history."""
+    """[HISTORY LOOKUP] Retrieve past usernames and profile data from the archives."""
     await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
     shard = await gUtils.shard_metrics(interaction)
     
@@ -376,7 +354,7 @@ async def archive_search(interaction: hikari.CommandInteraction, target: str):
 
 @app_commands.Command(context="Tracker", intensity="high", requires_connection=True)
 async def fenrir_track(interaction: hikari.CommandInteraction, target: str, channel_id: str = None):
-    """[ACTIVITY MONITOR] Deploy Fenrir to track a subject's online/game presence."""
+    """[ACTIVITY TRACKER] Monitor a user's online status and game activity."""
     target_channel = int(channel_id) if channel_id else interaction.channel_id
     await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
     shard = await gUtils.shard_metrics(interaction)
@@ -395,7 +373,7 @@ async def fenrir_track(interaction: hikari.CommandInteraction, target: str, chan
 
 @app_commands.Command(context="Group", intensity="low", requires_connection=False)
 async def knightmare_intel(interaction: hikari.CommandInteraction, group_id: int):
-    """[RANK INTELLIGENCE] Extract current rank distribution for a target group."""
+    """[GROUP ANALYSIS] Analyze a group's rank structure and hierarchy."""
     await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
     
     try:
@@ -420,7 +398,7 @@ async def knightmare_intel(interaction: hikari.CommandInteraction, group_id: int
 
 @app_commands.Command(context="Investigation", intensity="high", requires_connection=False)
 async def sherlock_scan(interaction: hikari.CommandInteraction, username: str):
-    """[NETWORK SCAN] Deploy Sherlock operatives to find a subject's digital footprint across the web."""
+    """[NETWORK SCAN] Search for a username across 100+ websites to find their digital footprint."""
     await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
     
     try:
@@ -446,7 +424,7 @@ async def sherlock_scan(interaction: hikari.CommandInteraction, username: str):
 
 @app_commands.Command(context="Investigation", intensity="high", requires_connection=False)
 async def absolute_friend_map(interaction: hikari.CommandInteraction, target: str):
-    """[ASSOCIATE ANALYSIS] Issue an Absolute Order to map a subject's network of associates."""
+    """[NETWORK MAP] Map out a Roblox user's entire friend network."""
     await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
     shard = await gUtils.shard_metrics(interaction)
     
@@ -470,7 +448,7 @@ async def absolute_friend_map(interaction: hikari.CommandInteraction, target: st
 
 @app_commands.Command(context="User", intensity="high")
 async def whois(interaction: hikari.CommandInteraction, user: str, download: bool = False):
-    """Get detailed profile information from a User ID/Username"""
+    """[PROFILE INTEL] Get a complete dossier on a Roblox user (Groups, Friends, History)."""
     if not (await app_commands.interaction_permissions_check(interaction, requires_entitlements=download)): return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
