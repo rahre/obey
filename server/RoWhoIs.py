@@ -22,7 +22,7 @@ def load_config():
                 "banned_assets": [],
                 "donors": [],
                 "easter_egg_enabled": False,
-                "subscription_bypass": False
+                "subscription_bypass": []
             },
             "Authentication": {
                 "production": os.environ.get("TOKEN"),
