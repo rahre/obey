@@ -45,20 +45,34 @@ cooldownValues = {
 async def check_cooldown(interaction: hikari.CommandInteraction, intensity: Literal["extreme", "high", "medium", "low"], commandName: str, cooldown_seconds: int = 60) -> bool:
     """Custom cooldown handler for user commands
     True = On cooldown, False = Not on cooldown
-    """ # Still somewhat glitchy, but it works and it's better than the old system
-    userId, current_time = interaction.user.id, time.time()
-    user_cooldowns = userCooldowns[commandName][userId]
-    if (interaction.entitlements and productionMode) or not productionMode or (interaction.user.id in subscriptionBypass): max_commands = cooldownValues[intensity]["premium"]
-    else: max_commands = cooldownValues[intensity]["standard"]
-    if len(user_cooldowns) >= max_commands and current_time - user_cooldowns[0] < cooldown_seconds:
-        remaining_seconds = round(cooldown_seconds - (current_time - user_cooldowns[0]))
-        if remaining_seconds <= 0: remaining_seconds = 1
-        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content=f"Your enthusiasm is greatly appreciated, but please slow down! Try again in **{remaining_seconds}** second{'s' if remaining_seconds >= 2 else ''}.", flags=hikari.MessageFlag.EPHEMERAL)
-        return True
-    else:
-        user_cooldowns.append(current_time)
-        if len(user_cooldowns) > max_commands: user_cooldowns.popleft()
-    return False
+    """
+    try:
+        # Ensure subscriptionBypass is a list/iterable
+        bypass_list = subscriptionBypass if isinstance(subscriptionBypass, list) else []
+
+        userId, current_time = interaction.user.id, time.time()
+        user_cooldowns = userCooldowns[commandName][userId]
+        
+        # Check entitlements safely
+        has_entitlements = getattr(interaction, 'entitlements', None)
+        
+        if (has_entitlements and productionMode) or not productionMode or (interaction.user.id in bypass_list): 
+            max_commands = cooldownValues[intensity]["premium"]
+        else: 
+            max_commands = cooldownValues[intensity]["standard"]
+
+        if len(user_cooldowns) >= max_commands and current_time - user_cooldowns[0] < cooldown_seconds:
+            remaining_seconds = round(cooldown_seconds - (current_time - user_cooldowns[0]))
+            if remaining_seconds <= 0: remaining_seconds = 1
+            await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content=f"Your enthusiasm is greatly appreciated, but please slow down! Try again in **{remaining_seconds}** second{'s' if remaining_seconds >= 2 else ''}.", flags=hikari.MessageFlag.EPHEMERAL)
+            return True
+        else:
+            user_cooldowns.append(current_time)
+            if len(user_cooldowns) > max_commands: user_cooldowns.popleft()
+        return False
+    except Exception as e:
+        await log_collector.error(f"COOLDOWN CHECK CRASH: {e}", initiator=f"check_cooldown.{commandName}")
+        return False # Fail open (allow command) if cooldown check crashes
 
 async def sync_app_commands(client: hikari.GatewayBot) -> None:
     """Syncs the global app command tree with the Discord API."""
