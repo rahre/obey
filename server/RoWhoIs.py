@@ -130,8 +130,12 @@ async def input_listener() -> None:
                 for proxy in all_proxies:
                     if proxy in enabled_proxies: await log_collector.info(f"\033[42m\033[37mON\033[0m  {proxy}", initiator="RoWhoIs.input_listener")
                     else: await log_collector.info(f"\033[41m\033[37mOFF\033[0m {proxy}", initiator="RoWhoIs.input_listener")
+        except EOFError:
+            # No stdin available (running in Docker/Railway container) — exit silently
+            await log_collector.info("No terminal input available (containerized). Input listener disabled.", initiator="RoWhoIs.input_listener")
+            return
         except Exception as e:
-            if not isinstance(e, RuntimeError): await log_collector.error(f"Error in input listener: {type(e)}, {e}", initiator="RoWhoIs.input_listener") # RTE happens when invalid config, usually
+            if not isinstance(e, RuntimeError): await log_collector.error(f"Error in input listener: {type(e)}, {e}", initiator="RoWhoIs.input_listener")
             else: return False
 
 @client.listen(hikari.GuildJoinEvent)
