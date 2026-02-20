@@ -1943,8 +1943,13 @@ async def discord2roblox(
     roblox_id = None
     async with aiohttp.ClientSession() as session:
         if bloxlinkKey:
+            url = (
+                f"https://api.blox.link/v4/public/guilds/{interaction.guild_id}/discord-to-roblox/{clean_id}"
+                if interaction.guild_id
+                else f"https://api.blox.link/v4/public/discord-to-roblox/{clean_id}"
+            )
             async with session.get(
-                f"https://api.blox.link/v4/public/discord-to-roblox/{clean_id}",
+                url,
                 headers={"Authorization": bloxlinkKey},
             ) as resp:
                 if resp.status == 200:
