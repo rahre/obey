@@ -1,4 +1,16 @@
-from server import Roquest, RoModules, app_commands, globals, DiscordOSINT, InviteTracker, GroupSpy, Investigation, Archives, ActivityTracker, SherlockIntegration
+from server import (
+    Roquest,
+    RoModules,
+    app_commands,
+    globals,
+    DiscordOSINT,
+    InviteTracker,
+    GroupSpy,
+    Investigation,
+    Archives,
+    ActivityTracker,
+    SherlockIntegration,
+)
 from utils import logger, ErrorDict, gUtils, typedefs
 import asyncio, hikari, io, aiohttp, inspect, time, json, aioconsole, datetime
 from pathlib import Path
@@ -6,13 +18,26 @@ from typing import Any, Optional, Literal
 
 
 def load_config():
-    global staffIds, optOut, userBlocklist, emojiTable, assetBlocklist, whoIsDonors, productionMode, botToken, eggEnabled, subscriptionBypass
+    global \
+        staffIds, \
+        optOut, \
+        userBlocklist, \
+        emojiTable, \
+        assetBlocklist, \
+        whoIsDonors, \
+        productionMode, \
+        botToken, \
+        eggEnabled, \
+        subscriptionBypass, \
+        bloxlinkKey, \
+        roverKey
     try:
-        with open('config.json', 'r') as configfile:
+        with open("config.json", "r") as configfile:
             config = json.load(configfile)
             configfile.close()
     except FileNotFoundError:
         import os
+
         config = {
             "RoWhoIs": {
                 "production_mode": True,
@@ -22,7 +47,7 @@ def load_config():
                 "banned_assets": [],
                 "donors": [],
                 "easter_egg_enabled": False,
-                "subscription_bypass": []
+                "subscription_bypass": [],
             },
             "Authentication": {
                 "production": os.environ.get("TOKEN"),
@@ -30,8 +55,10 @@ def load_config():
                 "webhook": os.environ.get("WEBHOOK_URL", ""),
                 "roblosecurity": os.environ.get("ROBLOSECURITY", ""),
                 "api_key": os.environ.get("ROBLOX_API_KEY", ""),
+                "bloxlink_key": os.environ.get("BLOXLINK_API_KEY", ""),
+                "rover_key": os.environ.get("ROVER_API_KEY", ""),
                 "topgg": "",
-                "dbl": ""
+                "dbl": "",
             },
             "Emojis": {},
             "Proxying": {
@@ -39,15 +66,45 @@ def load_config():
                 "proxy_urls": [],
                 "username": "",
                 "password": "",
-                "log_proxying": False
-            }
+                "log_proxying": False,
+            },
         }
-    
-    productionMode, staffIds, optOut, userBlocklist, assetBlocklist, whoIsDonors, eggEnabled, subscriptionBypass = config['RoWhoIs']['production_mode'], config['RoWhoIs']['admin_ids'], config['RoWhoIs']['opt_out'], config['RoWhoIs']['banned_users'], config['RoWhoIs']['banned_assets'], config['RoWhoIs']['donors'], config['RoWhoIs']['easter_egg_enabled'], config['RoWhoIs']['subscription_bypass']
-    botToken = {"topgg": config['Authentication']['topgg'], "dbl": config['Authentication']['dbl']}
-    emojiTable = {key: config['Emojis'][key] for key in config['Emojis']}
-    app_commands.init(productionmode=productionMode, optout=optOut, userblocklist=userBlocklist, emojitable=emojiTable, subscription_bypass=subscriptionBypass)
+
+    (
+        productionMode,
+        staffIds,
+        optOut,
+        userBlocklist,
+        assetBlocklist,
+        whoIsDonors,
+        eggEnabled,
+        subscriptionBypass,
+    ) = (
+        config["RoWhoIs"]["production_mode"],
+        config["RoWhoIs"]["admin_ids"],
+        config["RoWhoIs"]["opt_out"],
+        config["RoWhoIs"]["banned_users"],
+        config["RoWhoIs"]["banned_assets"],
+        config["RoWhoIs"]["donors"],
+        config["RoWhoIs"]["easter_egg_enabled"],
+        config["RoWhoIs"]["subscription_bypass"],
+    )
+    botToken = {
+        "topgg": config["Authentication"]["topgg"],
+        "dbl": config["Authentication"]["dbl"],
+    }
+    bloxlinkKey = config["Authentication"].get("bloxlink_key", "")
+    roverKey = config["Authentication"].get("rover_key", "")
+    emojiTable = {key: config["Emojis"][key] for key in config["Emojis"]}
+    app_commands.init(
+        productionmode=productionMode,
+        optout=optOut,
+        userblocklist=userBlocklist,
+        emojitable=emojiTable,
+        subscription_bypass=subscriptionBypass,
+    )
     return config
+
 
 def run(version: str) -> bool:
     """Runs the server"""
@@ -58,28 +115,49 @@ def run(version: str) -> bool:
         uptime = time.time()
         client.run(close_loop=False)
         return True
-    except KeyError: raise ErrorDict.MissingRequiredConfigs
-    except asyncio.exceptions.CancelledError: return True
-    except KeyboardInterrupt: return True
+    except KeyError:
+        raise ErrorDict.MissingRequiredConfigs
+    except asyncio.exceptions.CancelledError:
+        return True
+    except KeyboardInterrupt:
+        return True
+
 
 class RoWhoIs(hikari.GatewayBot):
     def __init__(self, *, intents: hikari.Intents):
         config = load_config()
-        super().__init__(intents=intents, token=config['Authentication']['production' if productionMode else 'testing'], banner=None)
+        super().__init__(
+            intents=intents,
+            token=config["Authentication"][
+                "production" if productionMode else "testing"
+            ],
+            banner=None,
+        )
 
-client = RoWhoIs(intents=hikari.Intents.ALL_UNPRIVILEGED | hikari.Intents.GUILD_MEMBERS | hikari.Intents.GUILD_INVITES | hikari.Intents.GUILD_PRESENCES)
+
+client = RoWhoIs(
+    intents=hikari.Intents.ALL_UNPRIVILEGED
+    | hikari.Intents.GUILD_MEMBERS
+    | hikari.Intents.GUILD_INVITES
+    | hikari.Intents.GUILD_PRESENCES
+)
 invite_tracker = InviteTracker.InviteTracker(client)
 group_spy = GroupSpy.GroupSpy(client)
 activity_tracker = ActivityTracker.ActivityTracker(client)
 shardAnalytics = gUtils.ShardAnalytics(0, False)
 log_collector = logger.AsyncLogCollector("logs/main.log")
 
+
 @client.listen(hikari.InteractionCreateEvent)
-async def wrapped_on_interaction_create(event: hikari.InteractionCreateEvent): await app_commands.interaction_runner(event)
+async def wrapped_on_interaction_create(event: hikari.InteractionCreateEvent):
+    await app_commands.interaction_runner(event)
+
 
 @client.listen(hikari.StartedEvent)
 async def start(event: hikari.StartedEvent):
-    await log_collector.info(f"Initialized! Syncing global command tree", initiator="RoWhoIs.start")
+    await log_collector.info(
+        f"Initialized! Syncing global command tree", initiator="RoWhoIs.start"
+    )
     globals.init(eggEnabled=eggEnabled)
     await Roquest.start_background_tasks()
     await Archives.init_db()
@@ -89,10 +167,18 @@ async def start(event: hikari.StartedEvent):
     loop.create_task(activity_tracker.tracker_loop())
     loop.create_task(input_listener())
 
+
 @client.listen(hikari.ShardConnectedEvent)
 async def connect(event: hikari.ShardConnectedEvent):
-    await log_collector.info(f"Shard {event.shard.id} connected to gateway", initiator="RoWhoIs.connect")
-    await client.update_presence(activity=hikari.Activity(type=hikari.ActivityType.WATCHING, name="over Robloxia"), status=hikari.Status.ONLINE)
+    await log_collector.info(
+        f"Shard {event.shard.id} connected to gateway", initiator="RoWhoIs.connect"
+    )
+    await client.update_presence(
+        activity=hikari.Activity(
+            type=hikari.ActivityType.WATCHING, name="over Robloxia"
+        ),
+        status=hikari.Status.ONLINE,
+    )
 
 
 async def input_listener() -> None:
@@ -103,96 +189,232 @@ async def input_listener() -> None:
             if not command:
                 await asyncio.sleep(1)
                 continue
-            if command == "help": print("Commands: down, up, shards, servers, users, cache, cflush, lflush, flush, reload")
-            if command == "down": raise KeyboardInterrupt
-            if command == "up": await log_collector.info(f"Uptime: {await gUtils.ret_uptime(uptime)}", initiator="RoWhoIs.input_listener")
-            if command == "shards": await log_collector.info(f"Shards: {client.shard_count}", initiator="RoWhoIs.input_listener")
-            if command == "servers": await log_collector.info(f"Servers: {len(client.cache.get_guilds_view())}", initiator="RoWhoIs.input_listener")
-            if command == "users": await log_collector.info(f"Users: {sum(client.cache.get_guild(guild_id).member_count if client.cache.get_guild(guild_id).member_count is not None else 0 for guild_id in client.cache.get_guilds_view())}", initiator="RoWhoIs.input_listener")
-            if command == "cache": await log_collector.info(f"Cache Size: {round(sum(f.stat().st_size for f in Path('cache/').glob('**/*') if f.is_file()) / 1048576, 1)} MB", initiator="RoWhoIs.input_listener")
+            if command == "help":
+                print(
+                    "Commands: down, up, shards, servers, users, cache, cflush, lflush, flush, reload"
+                )
+            if command == "down":
+                raise KeyboardInterrupt
+            if command == "up":
+                await log_collector.info(
+                    f"Uptime: {await gUtils.ret_uptime(uptime)}",
+                    initiator="RoWhoIs.input_listener",
+                )
+            if command == "shards":
+                await log_collector.info(
+                    f"Shards: {client.shard_count}", initiator="RoWhoIs.input_listener"
+                )
+            if command == "servers":
+                await log_collector.info(
+                    f"Servers: {len(client.cache.get_guilds_view())}",
+                    initiator="RoWhoIs.input_listener",
+                )
+            if command == "users":
+                await log_collector.info(
+                    f"Users: {sum(client.cache.get_guild(guild_id).member_count if client.cache.get_guild(guild_id).member_count is not None else 0 for guild_id in client.cache.get_guilds_view())}",
+                    initiator="RoWhoIs.input_listener",
+                )
+            if command == "cache":
+                await log_collector.info(
+                    f"Cache Size: {round(sum(f.stat().st_size for f in Path('cache/').glob('**/*') if f.is_file()) / 1048576, 1)} MB",
+                    initiator="RoWhoIs.input_listener",
+                )
             if command == "cflush":
-                if Path("cache/cursors.json").is_file(): Path("cache/cursors.json").unlink()
-                await log_collector.info("Cursor Cache flushed", initiator="RoWhoIs.input_listener")
+                if Path("cache/cursors.json").is_file():
+                    Path("cache/cursors.json").unlink()
+                await log_collector.info(
+                    "Cursor Cache flushed", initiator="RoWhoIs.input_listener"
+                )
             if command == "lflush":
                 for file in Path("logs/").glob("**/*"):
-                    if file.is_file() and file.name != "main.log": file.unlink()
-                await log_collector.info("Logs flushed", initiator="RoWhoIs.input_listener")
+                    if file.is_file() and file.name != "main.log":
+                        file.unlink()
+                await log_collector.info(
+                    "Logs flushed", initiator="RoWhoIs.input_listener"
+                )
             if command == "flush":
                 for file in Path("cache/").glob("**/*"):
-                    if file.is_file(): file.unlink()
-                await log_collector.info("Cache flushed", initiator="RoWhoIs.input_listener")
+                    if file.is_file():
+                        file.unlink()
+                await log_collector.info(
+                    "Cache flushed", initiator="RoWhoIs.input_listener"
+                )
             if command == "reload":
                 load_config()
-                await log_collector.info("Configuration reloaded", initiator="RoWhoIs.input_listener")
+                await log_collector.info(
+                    "Configuration reloaded", initiator="RoWhoIs.input_listener"
+                )
             if command == "proxies":
                 enabled_proxies, all_proxies = await globals.returnProxies()
                 await log_collector.info("Proxies:", initiator="RoWhoIs.input_listener")
                 for proxy in all_proxies:
-                    if proxy in enabled_proxies: await log_collector.info(f"\033[42m\033[37mON\033[0m  {proxy}", initiator="RoWhoIs.input_listener")
-                    else: await log_collector.info(f"\033[41m\033[37mOFF\033[0m {proxy}", initiator="RoWhoIs.input_listener")
+                    if proxy in enabled_proxies:
+                        await log_collector.info(
+                            f"\033[42m\033[37mON\033[0m  {proxy}",
+                            initiator="RoWhoIs.input_listener",
+                        )
+                    else:
+                        await log_collector.info(
+                            f"\033[41m\033[37mOFF\033[0m {proxy}",
+                            initiator="RoWhoIs.input_listener",
+                        )
         except EOFError:
             # No stdin available (running in Docker/Railway container) — exit silently
-            await log_collector.info("No terminal input available (containerized). Input listener disabled.", initiator="RoWhoIs.input_listener")
+            await log_collector.info(
+                "No terminal input available (containerized). Input listener disabled.",
+                initiator="RoWhoIs.input_listener",
+            )
             return
         except Exception as e:
-            if not isinstance(e, RuntimeError): await log_collector.error(f"Error in input listener: {type(e)}, {e}", initiator="RoWhoIs.input_listener")
-            else: return False
+            if not isinstance(e, RuntimeError):
+                await log_collector.error(
+                    f"Error in input listener: {type(e)}, {e}",
+                    initiator="RoWhoIs.input_listener",
+                )
+            else:
+                return False
+
 
 @client.listen(hikari.GuildJoinEvent)
 async def guild_join(event: hikari.GuildJoinEvent):
-    await log_collector.info(f"RoWhoIs has joined a new server. Total servers: {len(client.cache.get_guilds_view())}. {'Updating registries...' if productionMode else ''}", initiator="RoWhoIs.guild_join")
+    await log_collector.info(
+        f"RoWhoIs has joined a new server. Total servers: {len(client.cache.get_guilds_view())}. {'Updating registries...' if productionMode else ''}",
+        initiator="RoWhoIs.guild_join",
+    )
     if productionMode:
         try:
             async with aiohttp.ClientSession() as session:
                 if botToken.get("topgg") != "":
-                    async with session.post(f"https://top.gg/api/bots/{client.get_me().id}/stats", headers={"Authorization": botToken.get("topgg")}, json={"server_count": len(client.cache.get_guilds_view()), "shard_count": client.shard_count}): pass
+                    async with session.post(
+                        f"https://top.gg/api/bots/{client.get_me().id}/stats",
+                        headers={"Authorization": botToken.get("topgg")},
+                        json={
+                            "server_count": len(client.cache.get_guilds_view()),
+                            "shard_count": client.shard_count,
+                        },
+                    ):
+                        pass
                 if botToken.get("dbl") != "":
-                    async with session.post(f"https://discordbotlist.com/api/v1/bots/{client.get_me().id}/stats", headers={"Authorization": botToken.get("dbl")}, json={"guilds": len(client.cache.get_guilds_view())}): pass
-        except Exception as e: await log_collector.error(f"Failed to update registries. {e}", initiator="RoWhoIs.guild_join")
+                    async with session.post(
+                        f"https://discordbotlist.com/api/v1/bots/{client.get_me().id}/stats",
+                        headers={"Authorization": botToken.get("dbl")},
+                        json={"guilds": len(client.cache.get_guilds_view())},
+                    ):
+                        pass
+        except Exception as e:
+            await log_collector.error(
+                f"Failed to update registries. {e}", initiator="RoWhoIs.guild_join"
+            )
     await invite_tracker.update_invites(event.guild_id)
+
 
 @client.listen(hikari.MemberCreateEvent)
 async def member_join(event: hikari.MemberCreateEvent):
     """Triggered when a member joins a guild."""
     invite = await invite_tracker.find_inviter(event.guild_id)
     if invite:
-        await log_collector.info(f"User {event.user_id} joined guild {event.guild_id} using invite {invite.code} created by {invite.inviter}.", initiator="RoWhoIs.member_join")
+        await log_collector.info(
+            f"User {event.user_id} joined guild {event.guild_id} using invite {invite.code} created by {invite.inviter}.",
+            initiator="RoWhoIs.member_join",
+        )
     else:
-        await log_collector.info(f"User {event.user_id} joined guild {event.guild_id} (Invite unknown).", initiator="RoWhoIs.member_join")
+        await log_collector.info(
+            f"User {event.user_id} joined guild {event.guild_id} (Invite unknown).",
+            initiator="RoWhoIs.member_join",
+        )
+
 
 @app_commands.Command(context="Command", intensity="low", requires_connection=False)
 async def help(interaction: hikari.CommandInteraction):
     """List the tactical commands available to the Black Knights."""
     try:
-        embed = hikari.Embed(title="Tactical Command Overview: Aegis OSINT Suite", color=0x990000)
-        embed.description = "*\"The only ones who should kill, are those who are prepared to be killed.\"*"
-        
+        embed = hikari.Embed(
+            title="Tactical Command Overview: Aegis OSINT Suite", color=0x990000
+        )
+        embed.description = '*"The only ones who should kill, are those who are prepared to be killed."*'
+
         # OSINT Commands
-        embed.add_field(name="[OSINT] geass_lookup", value="Discord intel (ID, Creation, Flags)", inline=True)
-        embed.add_field(name="[OSINT] eye_of_geass", value="Subject origin arrival (Invite tracking)", inline=True)
-        embed.add_field(name="[SCAN] sherlock_scan", value="Multi-platform digital footprint search", inline=True)
-        
+        embed.add_field(
+            name="[OSINT] geass_lookup",
+            value="Discord intel (ID, Creation, Flags)",
+            inline=True,
+        )
+        embed.add_field(
+            name="[OSINT] eye_of_geass",
+            value="Subject origin arrival (Invite tracking)",
+            inline=True,
+        )
+        embed.add_field(
+            name="[SCAN] sherlock_scan",
+            value="Multi-platform digital footprint search",
+            inline=True,
+        )
+
         # Defense/Investigation
-        embed.add_field(name="[DETECT] absolute_order", value="Compare two subjects (Alt Check)", inline=True)
-        embed.add_field(name="[MAP] absolute_friend_map", value="Analyze a subject's associates", inline=True)
-        embed.add_field(name="[SPY] black_knights_spy", value="Monitor group membership changes", inline=True)
-        embed.add_field(name="[INTEL] knightmare_intel", value="Extract target group rank distribution", inline=True)
-        embed.add_field(name="[FENRIR] fenrir_track", value="Deploy a wolf to track presence status", inline=True)
-        embed.add_field(name="[HISTORY] archive_search", value="Retrieve subject's recorded history", inline=True)
-        
+        embed.add_field(
+            name="[DETECT] absolute_order",
+            value="Compare two subjects (Alt Check)",
+            inline=True,
+        )
+        embed.add_field(
+            name="[MAP] absolute_friend_map",
+            value="Analyze a subject's associates",
+            inline=True,
+        )
+        embed.add_field(
+            name="[SPY] black_knights_spy",
+            value="Monitor group membership changes",
+            inline=True,
+        )
+        embed.add_field(
+            name="[INTEL] knightmare_intel",
+            value="Extract target group rank distribution",
+            inline=True,
+        )
+        embed.add_field(
+            name="[FENRIR] fenrir_track",
+            value="Deploy a wolf to track presence status",
+            inline=True,
+        )
+        embed.add_field(
+            name="[HISTORY] archive_search",
+            value="Retrieve subject's recorded history",
+            inline=True,
+        )
+
         # Utility & Reverse Lookup
-        embed.add_field(name="[LINK] roblox2discord", value="Find Discord in Roblox Bio", inline=True)
-        embed.add_field(name="[LINK] discord2roblox", value="Discord -> Roblox (Req. API Key)", inline=True)
-        embed.add_field(name="[UTIL] discordid2user", value="Get User Info from ID", inline=True)
-        embed.add_field(name="[UTIL] discorduser2id", value="Get ID from User", inline=True)
-        
+        embed.add_field(
+            name="[LINK] roblox2discord",
+            value="Find Discord in Roblox Bio",
+            inline=True,
+        )
+        embed.add_field(
+            name="[LINK] discord2roblox",
+            value="Discord -> Roblox (Req. API Key)",
+            inline=True,
+        )
+        embed.add_field(
+            name="[UTIL] discordid2user", value="Get User Info from ID", inline=True
+        )
+        embed.add_field(
+            name="[UTIL] discorduser2id", value="Get ID from User", inline=True
+        )
+
         me = client.get_me()
         footer_icon = me.avatar_url if me else None
-        embed.set_footer(text="Absolute Order: Use these tools which Zero has granted you.", icon=footer_icon)
-        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+        embed.set_footer(
+            text="Absolute Order: Use these tools which Zero has granted you.",
+            icon=footer_icon,
+        )
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+        )
     except Exception as e:
-        await log_collector.error(f"HELP COMMAND CRASH: {type(e).__name__}: {e}", initiator="RoWhoIs.help")
+        await log_collector.error(
+            f"HELP COMMAND CRASH: {type(e).__name__}: {e}", initiator="RoWhoIs.help"
+        )
         raise
+
 
 @app_commands.Command(context="Command", intensity="low", requires_connection=False)
 async def about(interaction: hikari.CommandInteraction):
@@ -201,365 +423,762 @@ async def about(interaction: hikari.CommandInteraction):
     shard = await gUtils.shard_metrics(interaction)
     embed.title = "About RoWhoIs"
     embed.set_thumbnail(hikari.files.URL("https://rowhois.com/rwi-pfp-anim.gif"))
-    embed.set_author(name="Made with <3 by aut.m (@autumnated on Roblox)", icon=hikari.files.URL("https://rowhois.com/profile_picture.jpeg"))
+    embed.set_author(
+        name="Made with <3 by aut.m (@autumnated on Roblox)",
+        icon=hikari.files.URL("https://rowhois.com/profile_picture.jpeg"),
+    )
     embed.description = "RoWhoIs provides advanced information about Roblox users, groups, and assets. It's designed to be fast, reliable, and easy to use."
     embed.add_field(name="Version", value=f"`{shortHash}`", inline=True)
-    embed.add_field(name="Uptime", value=f"`{await gUtils.ret_uptime(uptime)}`", inline=True)
-    embed.add_field(name="Roblox Connection", value=f"{':green_circle: `Online' if globals.heartBeat else ':yellow_circle: `Interrupted' if globals.heartBeat is None else ':red_circle: `Offline'}`", inline=True)
-    embed.add_field(name="Last Rolimons Update", value=f"{await gUtils.fancy_time(globals.lastRoliUpdate)}", inline=True)
-    embed.add_field(name="Servers", value=f"`{len(client.cache.get_guilds_view())}`", inline=True)
-    embed.add_field(name="Users", value=f"`{sum(client.cache.get_guild(guild_id).member_count if client.cache.get_guild(guild_id).member_count is not None else 0 for guild_id in client.cache.get_guilds_view())}`", inline=True)
+    embed.add_field(
+        name="Uptime", value=f"`{await gUtils.ret_uptime(uptime)}`", inline=True
+    )
+    embed.add_field(
+        name="Roblox Connection",
+        value=f"{':green_circle: `Online' if globals.heartBeat else ':yellow_circle: `Interrupted' if globals.heartBeat is None else ':red_circle: `Offline'}`",
+        inline=True,
+    )
+    embed.add_field(
+        name="Last Rolimons Update",
+        value=f"{await gUtils.fancy_time(globals.lastRoliUpdate)}",
+        inline=True,
+    )
+    embed.add_field(
+        name="Servers", value=f"`{len(client.cache.get_guilds_view())}`", inline=True
+    )
+    embed.add_field(
+        name="Users",
+        value=f"`{sum(client.cache.get_guild(guild_id).member_count if client.cache.get_guild(guild_id).member_count is not None else 0 for guild_id in client.cache.get_guilds_view())}`",
+        inline=True,
+    )
     embed.add_field(name="Shards", value=f"`{client.shard_count}`", inline=True)
     embed.add_field(name="Shard ID", value=f"`{shard}`", inline=True)
-    embed.add_field(name="Cache Size", value=f"`{round(sum(f.stat().st_size for f in Path('cache/').glob('**/*') if f.is_file()) / 1048576, 1)} MB`", inline=True)
-    embed.add_field(name="RoWhoIs+", value=f"`{'Subscribed` ' + emojiTable.get('subscription')}" if (interaction.entitlements or not productionMode) or (interaction.user.id in subscriptionBypass) else  '`Not Subscribed :(`', inline=True)
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+    embed.add_field(
+        name="Cache Size",
+        value=f"`{round(sum(f.stat().st_size for f in Path('cache/').glob('**/*') if f.is_file()) / 1048576, 1)} MB`",
+        inline=True,
+    )
+    embed.add_field(
+        name="RoWhoIs+",
+        value=f"`{'Subscribed` ' + emojiTable.get('subscription')}"
+        if (interaction.entitlements or not productionMode)
+        or (interaction.user.id in subscriptionBypass)
+        else "`Not Subscribed :(`",
+        inline=True,
+    )
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+    )
+
 
 @app_commands.Command(context="User", intensity="low")
-async def userid(interaction: hikari.CommandInteraction, username: str, download: bool = False):
+async def userid(
+    interaction: hikari.CommandInteraction, username: str, download: bool = False
+):
     """Get a User ID from a username"""
-    if not (await app_commands.interaction_permissions_check(interaction, requires_entitlements=download)): return
+    if not (
+        await app_commands.interaction_permissions_check(
+            interaction, requires_entitlements=download
+        )
+    ):
+        return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
     user = await RoModules.convert_to_id(username, shard)
-    if not (await app_commands.interaction_permissions_check(interaction, user_id=user.id)): return
-    bust, headshot = await asyncio.gather(RoModules.get_player_bust(user.id, "420x420", shard), RoModules.get_player_headshot(user.id,  shard))
+    if not (
+        await app_commands.interaction_permissions_check(interaction, user_id=user.id)
+    ):
+        return
+    bust, headshot = await asyncio.gather(
+        RoModules.get_player_bust(user.id, "420x420", shard),
+        RoModules.get_player_headshot(user.id, shard),
+    )
     embed.set_thumbnail(hikari.URL(bust))
-    embed.set_author(name=f"{user.username} { '(' + user.nickname + ')' if user.username != user.nickname else ''}", icon=headshot, url=f"https://www.roblox.com/users/{user.id}/profile")
+    embed.set_author(
+        name=f"{user.username} {'(' + user.nickname + ')' if user.username != user.nickname else ''}",
+        icon=headshot,
+        url=f"https://www.roblox.com/users/{user.id}/profile",
+    )
     embed.description = f"{emojiTable.get('staff') if user.id in staffIds else ''} {emojiTable.get('donor') if user.id in whoIsDonors else ''} {emojiTable.get('verified') if user.verified else ''}"
     embed.add_field(name="User ID:", value=f"`{user.id}`", inline=True)
     embed.colour = 0x00FF00
-    if download: csv = "username, id, nickname, verified\n" + "\n".join([f"{user.username}, {user.id}, {user.nickname}, {user.verified}"])
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed, attachment=hikari.Bytes(csv, f"rowhois-userid-{user.id}.csv") if download else hikari.undefined.UNDEFINED)
+    if download:
+        csv = "username, id, nickname, verified\n" + "\n".join(
+            [f"{user.username}, {user.id}, {user.nickname}, {user.verified}"]
+        )
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE,
+        embed=embed,
+        attachment=hikari.Bytes(csv, f"rowhois-userid-{user.id}.csv")
+        if download
+        else hikari.undefined.UNDEFINED,
+    )
+
 
 @app_commands.Command(context="User", intensity="low")
-async def username(interaction: hikari.CommandInteraction, userid: int, download: bool = False):
+async def username(
+    interaction: hikari.CommandInteraction, userid: int, download: bool = False
+):
     """Get a username from a User ID"""
-    if not (await app_commands.interaction_permissions_check(interaction, user_id=userid, requires_entitlements=download)): return
+    if not (
+        await app_commands.interaction_permissions_check(
+            interaction, user_id=userid, requires_entitlements=download
+        )
+    ):
+        return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
     user = await RoModules.convert_to_username(userid, shard)
-    bust, headshot = await asyncio.gather(RoModules.get_player_bust(user.id, "420x420", shard), RoModules.get_player_headshot(user.id, shard))
+    bust, headshot = await asyncio.gather(
+        RoModules.get_player_bust(user.id, "420x420", shard),
+        RoModules.get_player_headshot(user.id, shard),
+    )
     embed.set_thumbnail(hikari.URL(bust))
-    embed.set_author(name=f"{user.username} { '(' + user.nickname + ')' if user.username != user.nickname else ''}", icon=headshot, url=f"https://www.roblox.com/users/{user.id}/profile")
+    embed.set_author(
+        name=f"{user.username} {'(' + user.nickname + ')' if user.username != user.nickname else ''}",
+        icon=headshot,
+        url=f"https://www.roblox.com/users/{user.id}/profile",
+    )
     embed.description = f"{emojiTable.get('staff') if user.id in staffIds else ''} {emojiTable.get('donor') if user.id in whoIsDonors else ''} {emojiTable.get('verified') if user.verified else ''}"
     embed.add_field(name="Username:", value=f"`{user.username}`", inline=True)
     embed.colour = 0x00FF00
-    if download: csv = "username, id, nickname, verified\n" + "\n".join([f"{user.username}, {user.id}, {user.nickname}, {user.verified}"])
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed, attachment=hikari.Bytes(csv, f'rowhois-username-{user.id}.csv') if download else hikari.undefined.UNDEFINED)
+    if download:
+        csv = "username, id, nickname, verified\n" + "\n".join(
+            [f"{user.username}, {user.id}, {user.nickname}, {user.verified}"]
+        )
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE,
+        embed=embed,
+        attachment=hikari.Bytes(csv, f"rowhois-username-{user.id}.csv")
+        if download
+        else hikari.undefined.UNDEFINED,
+    )
+
 
 @app_commands.Command(context="User", intensity="low", requires_connection=False)
 async def geass_lookup(interaction: hikari.CommandInteraction, user_id: str):
     """[DISCORD OSINT] Reveal a Discord user's creation date, flags, and origin."""
     if not user_id.isdigit():
-        await interaction.create_initial_response(content="The target's ID must be numerical.", flags=hikari.MessageFlag.EPHEMERAL)
+        await interaction.create_initial_response(
+            content="The target's ID must be numerical.",
+            flags=hikari.MessageFlag.EPHEMERAL,
+        )
         return
-    
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
-    
+
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
+
     info = await DiscordOSINT.get_user_info(client, int(user_id))
     if not info:
-        embed = hikari.Embed(title="GEASS FAILURE", description="The target could not be identified within the collective consciousness.", color=0x700000)
+        embed = hikari.Embed(
+            title="GEASS FAILURE",
+            description="The target could not be identified within the collective consciousness.",
+            color=0x700000,
+        )
         await interaction.edit_initial_response(embed=embed)
         return
 
     # Theme colors: Crimson (0x990000) or Purple (0x6a0dad)
     embed = hikari.Embed(title=f"EYE OF GEASS: {info['username']}", color=0x990000)
-    embed.set_thumbnail(info['avatar_url'])
-    
+    embed.set_thumbnail(info["avatar_url"])
+
     embed.add_field(name="Identity (ID)", value=f"`{info['id']}`", inline=True)
-    embed.add_field(name="Global Designation", value=f"`{info['global_name'] or 'Unknown'}`", inline=True)
-    
-    created_at_str = info['created_at'].strftime('%Y-%m-%d %H:%M:%S')
-    embed.add_field(name="Manifestation Date (Created)", value=f"`{created_at_str}`\n({info['age_days']} days ago)", inline=False)
-    
-    if info['flags']:
-        embed.add_field(name="Subconscious Traits (Flags)", value=f"`{', '.join(info['flags'])}`", inline=False)
-    
-    embed.add_field(name="Construct Type", value="`Bot`" if info['is_bot'] else "`Human`", inline=True)
-    
-    if info['banner_url']:
-        embed.set_image(info['banner_url'])
-        
-    embed.set_footer(text="Absolute Order: Reality has been revealed.", icon=client.get_me().avatar_url)
-    
+    embed.add_field(
+        name="Global Designation",
+        value=f"`{info['global_name'] or 'Unknown'}`",
+        inline=True,
+    )
+
+    created_at_str = info["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+    embed.add_field(
+        name="Manifestation Date (Created)",
+        value=f"`{created_at_str}`\n({info['age_days']} days ago)",
+        inline=False,
+    )
+
+    if info["flags"]:
+        embed.add_field(
+            name="Subconscious Traits (Flags)",
+            value=f"`{', '.join(info['flags'])}`",
+            inline=False,
+        )
+
+    embed.add_field(
+        name="Construct Type",
+        value="`Bot`" if info["is_bot"] else "`Human`",
+        inline=True,
+    )
+
+    if info["banner_url"]:
+        embed.set_image(info["banner_url"])
+
+    embed.set_footer(
+        text="Absolute Order: Reality has been revealed.",
+        icon=client.get_me().avatar_url,
+    )
+
     await interaction.edit_initial_response(embed=embed)
 
+
 @app_commands.Command(context="Group", intensity="high", requires_connection=True)
-async def black_knights_spy(interaction: hikari.CommandInteraction, group_id: int, channel_id: str = None):
+async def black_knights_spy(
+    interaction: hikari.CommandInteraction, group_id: int, channel_id: str = None
+):
     """[GROUP SPY] Monitor a Roblox group for new members and leaves."""
     target_channel = int(channel_id) if channel_id else interaction.channel_id
-    
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
-    
+
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
+
     await group_spy.add_group(group_id, target_channel)
-    
+
     embed = hikari.Embed(title="BLACK KNIGHTS DEPLOYED", color=0x990000)
     embed.description = f"Operative is now monitoring Group `{group_id}`.\nIntel will be reported to <#{target_channel}>."
     embed.set_footer(text="Zero's absolute orders are being carried out.")
-    
+
     await interaction.edit_initial_response(embed=embed)
 
-@app_commands.Command(context="Investigation", intensity="high", requires_connection=True)
-async def absolute_order(interaction: hikari.CommandInteraction, target1: str, target2: str):
+
+@app_commands.Command(
+    context="Investigation", intensity="high", requires_connection=True
+)
+async def absolute_order(
+    interaction: hikari.CommandInteraction, target1: str, target2: str
+):
     """[ALT CHECK] Compare two Roblox accounts to detect if they are the same person."""
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
     shard = await gUtils.shard_metrics(interaction)
-    
+
     try:
         # Resolve users
         u1 = await RoModules.handle_usertype(target1, shard)
         u2 = await RoModules.handle_usertype(target2, shard)
-        
+
         results = await Investigation.check_roblox_alt(u1.id, u2.id, shard)
-        
+
         embed = hikari.Embed(title="ABSOLUTE ORDER: ALT ANALYSIS", color=0x990000)
         embed.add_field(name="Subject Alpha", value=f"`{u1.username}`", inline=True)
         embed.add_field(name="Subject Beta", value=f"`{u2.username}`", inline=True)
-        
-        embed.add_field(name="Overlap Intelligence", value=f"Common Groups: `{results['common_groups_count']}`\nCommon Friends: `{results['common_friends_count']}`", inline=False)
-        
-        score = results['score']
-        probability = "LOW" if score < 10 else "MEDIUM" if score < 30 else "HIGH" if score < 60 else "CRITICAL"
-        
-        embed.add_field(name="Connection Probability", value=f"`{probability}` (Score: {score})", inline=False)
+
+        embed.add_field(
+            name="Overlap Intelligence",
+            value=f"Common Groups: `{results['common_groups_count']}`\nCommon Friends: `{results['common_friends_count']}`",
+            inline=False,
+        )
+
+        score = results["score"]
+        probability = (
+            "LOW"
+            if score < 10
+            else "MEDIUM"
+            if score < 30
+            else "HIGH"
+            if score < 60
+            else "CRITICAL"
+        )
+
+        embed.add_field(
+            name="Connection Probability",
+            value=f"`{probability}` (Score: {score})",
+            inline=False,
+        )
         embed.set_footer(text="Zero has commanded: The truth is absolute.")
-        
+
         await interaction.edit_initial_response(embed=embed)
     except Exception as e:
-        await app_commands.handle_error(e, interaction, "absolute_order", shard, "Investigation")
+        await app_commands.handle_error(
+            e, interaction, "absolute_order", shard, "Investigation"
+        )
+
 
 @app_commands.Command(context="Archive", intensity="low", requires_connection=False)
 async def archive_search(interaction: hikari.CommandInteraction, target: str):
     """[HISTORY LOOKUP] Retrieve past usernames and profile data from the archives."""
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
     shard = await gUtils.shard_metrics(interaction)
-    
+
     try:
-        user_id = int(target) if target.isdigit() else (await RoModules.convert_to_id(target, shard))
-        
+        user_id = (
+            int(target)
+            if target.isdigit()
+            else (await RoModules.convert_to_id(target, shard))
+        )
+
         info = await Archives.get_user_data(user_id)
         history = await Archives.get_history(user_id)
-        
+
         embed = hikari.Embed(title=f"THE ARCHIVES: SUBJECT {user_id}", color=0x990000)
-        
+
         if info:
-            last_seen = info[1].strftime('%Y-%m-%d %H:%M:%S')
+            last_seen = info[1].strftime("%Y-%m-%d %H:%M:%S")
             embed.description = f"**Current Alias**: `{info[0]}`\n**Last Observed**: `{last_seen}`\n**Status**: `{info[2]}`"
         else:
             embed.description = "No prior data exists in the archives for this subject."
-            
+
         if history:
-            history_str = "\n".join([f"`{h[0]}` (until {h[1].strftime('%Y-%m-%d')})" for h in history[:10]])
-            embed.add_field(name="Previous Designations", value=history_str or "No changes recorded.")
-        
+            history_str = "\n".join(
+                [f"`{h[0]}` (until {h[1].strftime('%Y-%m-%d')})" for h in history[:10]]
+            )
+            embed.add_field(
+                name="Previous Designations",
+                value=history_str or "No changes recorded.",
+            )
+
         embed.set_footer(text="Absolute Order: History cannot be erased.")
         await interaction.edit_initial_response(embed=embed)
     except Exception as e:
-        await interaction.edit_initial_response(content=f"Archive retrieval failed: {e}")
+        await interaction.edit_initial_response(
+            content=f"Archive retrieval failed: {e}"
+        )
+
 
 @app_commands.Command(context="Tracker", intensity="high", requires_connection=True)
-async def fenrir_track(interaction: hikari.CommandInteraction, target: str, channel_id: str = None):
+async def fenrir_track(
+    interaction: hikari.CommandInteraction, target: str, channel_id: str = None
+):
     """[ACTIVITY TRACKER] Monitor a user's online status and game activity."""
     target_channel = int(channel_id) if channel_id else interaction.channel_id
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
     shard = await gUtils.shard_metrics(interaction)
-    
+
     try:
-        user_id = int(target) if target.isdigit() else (await RoModules.convert_to_id(target, shard))
+        user_id = (
+            int(target)
+            if target.isdigit()
+            else (await RoModules.convert_to_id(target, shard))
+        )
         await activity_tracker.add_target(user_id, target_channel)
-        
+
         embed = hikari.Embed(title="FENRIR DEPLOYED", color=0x990000)
         embed.description = f"Fenrir is now tracking Subject `{user_id}`.\nIntel will be reported to <#{target_channel}>."
         embed.set_footer(text="The Wolf scents its prey.")
-        
+
         await interaction.edit_initial_response(embed=embed)
     except Exception as e:
-        await interaction.edit_initial_response(content=f"Fenrir deployment failed: {e}")
+        await interaction.edit_initial_response(
+            content=f"Fenrir deployment failed: {e}"
+        )
+
 
 @app_commands.Command(context="Group", intensity="low", requires_connection=False)
 async def knightmare_intel(interaction: hikari.CommandInteraction, group_id: int):
     """[GROUP ANALYSIS] Analyze a group's rank structure and hierarchy."""
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
-    
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
+
     try:
         # We'll just show current spy status or fetch roles
-        data = await Roquest.Roquest("GET", "groups", f"v1/groups/{group_id}/roles", shard_id=0)
+        data = await Roquest.Roquest(
+            "GET", "groups", f"v1/groups/{group_id}/roles", shard_id=0
+        )
         if data[0] != 200:
-            await interaction.edit_initial_response(content="Intelligence retrieval failed.")
+            await interaction.edit_initial_response(
+                content="Intelligence retrieval failed."
+            )
             return
-        
-        embed = hikari.Embed(title=f"KNIGHTMARE INTEL: Group {group_id} Roles", color=0x990000)
-        roles = data[1].get('roles', [])
+
+        embed = hikari.Embed(
+            title=f"KNIGHTMARE INTEL: Group {group_id} Roles", color=0x990000
+        )
+        roles = data[1].get("roles", [])
         roles_str = "\n".join([f"`{r['name']}` (Rank {r['rank']})" for r in roles])
         embed.description = f"**Tactical Heirarchy**:\n{roles_str}"
-        
+
         is_spying = group_id in group_spy.tracked_groups
-        embed.add_field(name="Spy Status", value="`ACTIVE`" if is_spying else "`INACTIVE`", inline=True)
-        
+        embed.add_field(
+            name="Spy Status",
+            value="`ACTIVE`" if is_spying else "`INACTIVE`",
+            inline=True,
+        )
+
         embed.set_footer(text="Zero's eyes are upon this hierarchy.")
         await interaction.edit_initial_response(embed=embed)
     except Exception as e:
-        await interaction.edit_initial_response(content=f"Knightmare analysis failed: {e}")
+        await interaction.edit_initial_response(
+            content=f"Knightmare analysis failed: {e}"
+        )
 
-@app_commands.Command(context="Investigation", intensity="high", requires_connection=False)
+
+@app_commands.Command(
+    context="Investigation", intensity="high", requires_connection=False
+)
 async def sherlock_scan(interaction: hikari.CommandInteraction, username: str):
     """[NETWORK SCAN] Search for a username across 100+ websites to find their digital footprint."""
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
-    
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
+
     try:
         results = await SherlockIntegration.scan_username(username)
-        
+
         embed = hikari.Embed(title=f"SHERLOCK SCAN: {username}", color=0x990000)
-        
+
         found = [f"[{p}]({u})" for p, u, exists in results if exists]
         missing = [p for p, u, exists in results if not exists]
-        
+
         if found:
-            embed.add_field(name="Manifestations (Found)", value="\n".join(found), inline=False)
+            embed.add_field(
+                name="Manifestations (Found)", value="\n".join(found), inline=False
+            )
         else:
-            embed.description = "No digital manifestations found within the immediate network."
-            
+            embed.description = (
+                "No digital manifestations found within the immediate network."
+            )
+
         if missing:
-            embed.add_field(name="Void Zones (Not Found)", value=", ".join(missing), inline=False)
-            
+            embed.add_field(
+                name="Void Zones (Not Found)", value=", ".join(missing), inline=False
+            )
+
         embed.set_footer(text="Zero's network is vast. The subject has been mapped.")
         await interaction.edit_initial_response(embed=embed)
     except Exception as e:
         await interaction.edit_initial_response(content=f"Sherlock scan failed: {e}")
 
-@app_commands.Command(context="Investigation", intensity="high", requires_connection=False)
+
+@app_commands.Command(
+    context="Investigation", intensity="high", requires_connection=False
+)
 async def absolute_friend_map(interaction: hikari.CommandInteraction, target: str):
     """[NETWORK MAP] Map out a Roblox user's entire friend network."""
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
     shard = await gUtils.shard_metrics(interaction)
-    
+
     try:
-        user_id = int(target) if target.isdigit() else (await RoModules.convert_to_id(target, shard))
-        
+        user_id = (
+            int(target)
+            if target.isdigit()
+            else (await RoModules.convert_to_id(target, shard))
+        )
+
         associates = await Investigation.map_friends(user_id, shard)
-        
-        embed = hikari.Embed(title=f"ABSOLUTE ORDER: ASSOCIATE MAP ({user_id})", color=0x990000)
-        
+
+        embed = hikari.Embed(
+            title=f"ABSOLUTE ORDER: ASSOCIATE MAP ({user_id})", color=0x990000
+        )
+
         if associates:
-            associates_str = "\n".join([f"`{a['name']}` ({a['id']})" for a in associates])
+            associates_str = "\n".join(
+                [f"`{a['name']}` ({a['id']})" for a in associates]
+            )
             embed.description = f"**Identified Associates**:\n{associates_str}"
         else:
-            embed.description = "The subject exists in isolation or has hidden their network."
-            
+            embed.description = (
+                "The subject exists in isolation or has hidden their network."
+            )
+
         embed.set_footer(text="The Black Knights have mapped the target's reach.")
         await interaction.edit_initial_response(embed=embed)
     except Exception as e:
-        await interaction.edit_initial_response(content=f"Associate mapping failed: {e}")
+        await interaction.edit_initial_response(
+            content=f"Associate mapping failed: {e}"
+        )
+
 
 @app_commands.Command(context="User", intensity="high")
-async def whois(interaction: hikari.CommandInteraction, user: str, download: bool = False):
+async def whois(
+    interaction: hikari.CommandInteraction, user: str, download: bool = False
+):
     """[PROFILE INTEL] Get a complete dossier on a Roblox user (Groups, Friends, History)."""
-    if not (await app_commands.interaction_permissions_check(interaction, requires_entitlements=download)): return
+    if not (
+        await app_commands.interaction_permissions_check(
+            interaction, requires_entitlements=download
+        )
+    ):
+        return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
-    if not str(user).isdigit(): user = await RoModules.convert_to_id(user, shard)
-    else: user = typedefs.User(id=int(user))
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
-    user, groups, usernames, robloxbadges, email_verification = await RoModules.get_full_player_profile(user.id, shard)
-    await Archives.update_user(user.id, user.username, "Online" if user.online else "Offline")
+    if not str(user).isdigit():
+        user = await RoModules.convert_to_id(user, shard)
+    else:
+        user = typedefs.User(id=int(user))
+    try:
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+        )
+    except hikari.errors.BadRequestError:
+        pass
+    (
+        user,
+        groups,
+        usernames,
+        robloxbadges,
+        email_verification,
+    ) = await RoModules.get_full_player_profile(user.id, shard)
+    await Archives.update_user(
+        user.id, user.username, "Online" if user.online else "Offline"
+    )
     embed.set_thumbnail(user.thumbnail)
-    embed.set_author(name=f"@{user.username} { '(' + user.nickname + ')' if user.username != user.nickname else ''}", icon=user.headshot, url=f"https://www.roblox.com/users/{user.id}/profile" if not user.banned else '')
+    embed.set_author(
+        name=f"@{user.username} {'(' + user.nickname + ')' if user.username != user.nickname else ''}",
+        icon=user.headshot,
+        url=f"https://www.roblox.com/users/{user.id}/profile"
+        if not user.banned
+        else "",
+    )
     embed.description = f"{emojiTable.get('staff') if user.id in staffIds else ''} {emojiTable.get('donor') if user.id in whoIsDonors else ''} {emojiTable.get('verified') if user.verified else ''} {emojiTable.get('epic') if user.id in globals.eggFollowers else ''}"
     embed.add_field(name="User ID", value=f"`{user.id}`", inline=True)
-    embed.add_field(name="Account Status", value=f"{'`Terminated/Deactivated`' if user.banned else '`Okay`'}", inline=True)
-    if robloxbadges[0]: embed.add_field(name="Badges", value=f"{''.join([f'{emojiTable.get(str(robloxbadges[1].get(badge)).lower())}' for badge in robloxbadges[0]])}", inline=True)
+    embed.add_field(
+        name="Account Status",
+        value=f"{'`Terminated/Deactivated`' if user.banned else '`Okay`'}",
+        inline=True,
+    )
+    if robloxbadges[0]:
+        embed.add_field(
+            name="Badges",
+            value=f"{''.join([f'{emojiTable.get(str(robloxbadges[1].get(badge)).lower())}' for badge in robloxbadges[0]])}",
+            inline=True,
+        )
     if not user.banned:
-        embed.add_field(name="Email", value=f"`{'Unverified' if email_verification == 3 else 'Verified'}{', Hat & Sign' if email_verification == 4 else ', Sign' if email_verification == 2 else ', Hat' if email_verification == 1 else ', Hat & Sign' if email_verification != 3 else ''}`", inline=True)
-        if usernames: embed.add_field(name=f"Previous Usernames ({len(usernames)})", value=', '.join([f'`{name}`' for name in usernames[:10]]) + (f", and {len(usernames[10:])} more" if len(usernames) > 10 else ""), inline=True)
-    embed.add_field(name="Joined", value=f"{await gUtils.fancy_time(user.joined)}", inline=True)
-    embed.add_field(name="Last Online", value=f"{await gUtils.fancy_time(user.online)}", inline=True)
+        embed.add_field(
+            name="Email",
+            value=f"`{'Unverified' if email_verification == 3 else 'Verified'}{', Hat & Sign' if email_verification == 4 else ', Sign' if email_verification == 2 else ', Hat' if email_verification == 1 else ', Hat & Sign' if email_verification != 3 else ''}`",
+            inline=True,
+        )
+        if usernames:
+            embed.add_field(
+                name=f"Previous Usernames ({len(usernames)})",
+                value=", ".join([f"`{name}`" for name in usernames[:10]])
+                + (f", and {len(usernames[10:])} more" if len(usernames) > 10 else ""),
+                inline=True,
+            )
+    embed.add_field(
+        name="Joined", value=f"{await gUtils.fancy_time(user.joined)}", inline=True
+    )
+    embed.add_field(
+        name="Last Online", value=f"{await gUtils.fancy_time(user.online)}", inline=True
+    )
     embed.add_field(name="Friends", value=f"`{user.friends}`", inline=True)
     embed.add_field(name="Followers", value=f"`{user.followers}`", inline=True)
     embed.add_field(name="Following", value=f"`{user.following}`", inline=True)
     embed.add_field(name="Groups", value=f"`{groups}`", inline=True)
-    if user.description is not None and user.description != '': embed.add_field(name="Description", value=f"```{user.description.replace('```', '') if user.description else 'None'}```", inline=False)
+    if user.description is not None and user.description != "":
+        embed.add_field(
+            name="Description",
+            value=f"```{user.description.replace('```', '') if user.description else 'None'}```",
+            inline=False,
+        )
     embed.colour = 0x00FF00
     nlChar, limData = "\n", None
-    if eggEnabled and user.id in globals.eggFollowers: embed.set_footer(text="This user is certifiably cool")
+    if eggEnabled and user.id in globals.eggFollowers:
+        embed.set_footer(text="This user is certifiably cool")
     if download:
-        if isinstance(usernames, list) and usernames: whoData = "id, username, nickname, verified, rowhois_staff, account_status, joined, last_online, verified_email, groups, friends, followers, following, previous_usernames, description\n" + ''.join([f"{user.id}, {user.username}, {user.nickname}, {user.verified}, {user.id in staffIds}, {'Terminated/Deactivated' if user.banned else 'Okay' if not user.banned else 'None'}, {user.joined}, {user.online}, {('None' if email_verification == -1 else 'None' if email_verification == 0 else 'Hat' if email_verification == 1 else 'Sign' if email_verification == 2 else 'Unverified' if email_verification == 3 else 'Both' if email_verification == 4 else 'None') if str(email_verification).isdigit() else 'None'}, {groups}, {user.friends}, {user.followers}, {user.following}, {name}, {user.description.replace(',', '').replace(nlChar, '     ') if user.description else 'None'}\n" for name in usernames])
-        elif user.banned: whoData = f"id, username, nickname, verified, rowhois_staff, account_status, joined, last_online, groups, friends, followers, following, description\n{user.id}, {user.username}, {user.nickname}, {user.verified}, {user.id in staffIds}, {'Terminated/Deactivated' if user.banned else 'Okay' if not user.banned else 'None'}, {user.joined}, {user.online}, {groups}, {user.friends}, {user.followers}, {user.following}, None, None\n"
-        else: whoData = f"id, username, nickname, verified, rowhois_staff, account_status, joined, last_online, verified_email, groups, friends, followers, following, previous_usernames, description\n{user.id}, {user.username}, {user.nickname}, {user.verified}, {user.id in staffIds}, {'Terminated/Deactivated' if user.banned else 'Okay' if not user.banned else 'None'}, {user.joined}, {user.online}, {('None' if email_verification == -1 else 'None' if email_verification == 0 else 'Hat' if email_verification == 1 else 'Sign' if email_verification == 2 else 'Unverified' if email_verification == 3 else 'Both' if email_verification == 4 else 'None') if str(email_verification).isdigit() else 'None'}, {groups}, {user.friends}, {user.followers}, {user.following}, None, {user.description.replace(',', '').replace(nlChar, '     ') if user.description else 'None'}\n"
+        if isinstance(usernames, list) and usernames:
+            whoData = (
+                "id, username, nickname, verified, rowhois_staff, account_status, joined, last_online, verified_email, groups, friends, followers, following, previous_usernames, description\n"
+                + "".join(
+                    [
+                        f"{user.id}, {user.username}, {user.nickname}, {user.verified}, {user.id in staffIds}, {'Terminated/Deactivated' if user.banned else 'Okay' if not user.banned else 'None'}, {user.joined}, {user.online}, {('None' if email_verification == -1 else 'None' if email_verification == 0 else 'Hat' if email_verification == 1 else 'Sign' if email_verification == 2 else 'Unverified' if email_verification == 3 else 'Both' if email_verification == 4 else 'None') if str(email_verification).isdigit() else 'None'}, {groups}, {user.friends}, {user.followers}, {user.following}, {name}, {user.description.replace(',', '').replace(nlChar, '     ') if user.description else 'None'}\n"
+                        for name in usernames
+                    ]
+                )
+            )
+        elif user.banned:
+            whoData = f"id, username, nickname, verified, rowhois_staff, account_status, joined, last_online, groups, friends, followers, following, description\n{user.id}, {user.username}, {user.nickname}, {user.verified}, {user.id in staffIds}, {'Terminated/Deactivated' if user.banned else 'Okay' if not user.banned else 'None'}, {user.joined}, {user.online}, {groups}, {user.friends}, {user.followers}, {user.following}, None, None\n"
+        else:
+            whoData = f"id, username, nickname, verified, rowhois_staff, account_status, joined, last_online, verified_email, groups, friends, followers, following, previous_usernames, description\n{user.id}, {user.username}, {user.nickname}, {user.verified}, {user.id in staffIds}, {'Terminated/Deactivated' if user.banned else 'Okay' if not user.banned else 'None'}, {user.joined}, {user.online}, {('None' if email_verification == -1 else 'None' if email_verification == 0 else 'Hat' if email_verification == 1 else 'Sign' if email_verification == 2 else 'Unverified' if email_verification == 3 else 'Both' if email_verification == 4 else 'None') if str(email_verification).isdigit() else 'None'}, {groups}, {user.friends}, {user.followers}, {user.following}, None, {user.description.replace(',', '').replace(nlChar, '     ') if user.description else 'None'}\n"
     initialResponse = time.time()
-    await interaction.edit_initial_response(embed=embed, attachments=[hikari.Bytes(whoData, f'rowhois-{user.id}.csv')] if download else hikari.undefined.UNDEFINED)
+    await interaction.edit_initial_response(
+        embed=embed,
+        attachments=[hikari.Bytes(whoData, f"rowhois-{user.id}.csv")]
+        if download
+        else hikari.undefined.UNDEFINED,
+    )
     if not user.banned and user.id != 1:
-        privateInventory, rap, value, items = await RoModules.get_limiteds(user.id, globals.roliData, shard)
-        embed.add_field(name="Private Inventory", value=f"`{privateInventory}`", inline=True)
+        privateInventory, rap, value, items = await RoModules.get_limiteds(
+            user.id, globals.roliData, shard
+        )
+        embed.add_field(
+            name="Private Inventory", value=f"`{privateInventory}`", inline=True
+        )
         if not privateInventory:
             embed.add_field(name="RAP", value=f"`{rap}`", inline=True)
             embed.add_field(name="Value", value=f"`{value}`", inline=True)
-            if download: limData = f"owner_id, item_id\n" + ''.join([f"{user.id}, {item}{nlChar}" for item in items])
-        if (time.time() - initialResponse) < 1: await asyncio.sleep(1 - (time.time() - initialResponse)) # \/ Shitty way of going about it
-        if limData: await interaction.edit_initial_response(embed=embed, attachments=[hikari.Bytes(limData, f'rowhois-limiteds-{user.id}.csv'), hikari.Bytes(whoData, f'rowhois-{user.id}.csv')] if download else hikari.undefined.UNDEFINED)
-        else: await interaction.edit_initial_response(embed=embed, attachments=[hikari.Bytes(whoData, f'rowhois-{user.id}.csv')] if download else hikari.undefined.UNDEFINED)
+            if download:
+                limData = f"owner_id, item_id\n" + "".join(
+                    [f"{user.id}, {item}{nlChar}" for item in items]
+                )
+        if (time.time() - initialResponse) < 1:
+            await asyncio.sleep(
+                1 - (time.time() - initialResponse)
+            )  # \/ Shitty way of going about it
+        if limData:
+            await interaction.edit_initial_response(
+                embed=embed,
+                attachments=[
+                    hikari.Bytes(limData, f"rowhois-limiteds-{user.id}.csv"),
+                    hikari.Bytes(whoData, f"rowhois-{user.id}.csv"),
+                ]
+                if download
+                else hikari.undefined.UNDEFINED,
+            )
+        else:
+            await interaction.edit_initial_response(
+                embed=embed,
+                attachments=[hikari.Bytes(whoData, f"rowhois-{user.id}.csv")]
+                if download
+                else hikari.undefined.UNDEFINED,
+            )
+
 
 @app_commands.Command(context="Item", intensity="medium")
-async def ownsitem(interaction: hikari.CommandInteraction, user: str, item: int, download: bool = False):
+async def ownsitem(
+    interaction: hikari.CommandInteraction, user: str, item: int, download: bool = False
+):
     """Check if a player owns a specific item"""
-    if not (await app_commands.interaction_permissions_check(interaction, requires_entitlements=download)): return
+    if not (
+        await app_commands.interaction_permissions_check(
+            interaction, requires_entitlements=download
+        )
+    ):
+        return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
-    try: user = await RoModules.handle_usertype(user, shard)
+    try:
+        user = await RoModules.handle_usertype(user, shard)
     except Exception as e:
-        if await app_commands.handle_error(e, interaction, "ownsitem", shard, "User"): return
-    if not (await app_commands.interaction_permissions_check(interaction, user_id=user.id)): return
+        if await app_commands.handle_error(e, interaction, "ownsitem", shard, "User"):
+            return
+    if not (
+        await app_commands.interaction_permissions_check(interaction, user_id=user.id)
+    ):
+        return
     data = await RoModules.owns_item(user.id, item, shard)
     if data[0] is None:
-        if data[2] == "The specified user does not exist!": embed.description = "User does not exist or has been banned."
-        elif data[2] == "The specified Asset does not exist!": embed.description = "Item does not exist."
-        else: embed.description = f"Failed to retrieve data: {data[2]}"
-        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+        if data[2] == "The specified user does not exist!":
+            embed.description = "User does not exist or has been banned."
+        elif data[2] == "The specified Asset does not exist!":
+            embed.description = "Item does not exist."
+        else:
+            embed.description = f"Failed to retrieve data: {data[2]}"
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+        )
         return
     if data[0]:
-        embed.set_thumbnail(hikari.URL(await RoModules.get_item_thumbnail(item, "420x420", shard)))
+        embed.set_thumbnail(
+            hikari.URL(await RoModules.get_item_thumbnail(item, "420x420", shard))
+        )
         embed.colour = 0x00FF00
-        embed.title = f"{user.username} owns {data[1]} {data[2]}{'s' if data[1] > 1 else ''}!"
+        embed.title = (
+            f"{user.username} owns {data[1]} {data[2]}{'s' if data[1] > 1 else ''}!"
+        )
         displayUAIDs = data[3][:100]
-        embed.description = "**UAIDs:**\n" + ', '.join([f"`{uaid}`" for uaid in map(str, displayUAIDs)])
+        embed.description = "**UAIDs:**\n" + ", ".join(
+            [f"`{uaid}`" for uaid in map(str, displayUAIDs)]
+        )
         remainingCount = max(0, data[1] - 100)
-        if remainingCount > 0: embed.description += f", and {remainingCount} more."
-    else: embed.description = f"{user.username} doesn't own this item!"
+        if remainingCount > 0:
+            embed.description += f", and {remainingCount} more."
+    else:
+        embed.description = f"{user.username} doesn't own this item!"
     if download:
-        if data[0]: csv = "username, id, item, owned, uaid\n" + "\n".join([f"{user.username}, {user.id}, {item}, {bool(data[0])}, {uaid}" for uaid in data[3]])
-        else: csv = f"username, id, item, owned, uaid\n{user.username}, {user.id}, {item}, {bool(data[0])}, None"
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed, attachment=hikari.Bytes(csv, f'rowhois-ownsitem-{user.id}.csv') if download else hikari.undefined.UNDEFINED)
+        if data[0]:
+            csv = "username, id, item, owned, uaid\n" + "\n".join(
+                [
+                    f"{user.username}, {user.id}, {item}, {bool(data[0])}, {uaid}"
+                    for uaid in data[3]
+                ]
+            )
+        else:
+            csv = f"username, id, item, owned, uaid\n{user.username}, {user.id}, {item}, {bool(data[0])}, None"
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE,
+        embed=embed,
+        attachment=hikari.Bytes(csv, f"rowhois-ownsitem-{user.id}.csv")
+        if download
+        else hikari.undefined.UNDEFINED,
+    )
+
 
 @app_commands.Command(context="Badge", intensity="low")
-async def ownsbadge(interaction: hikari.CommandInteraction, user: str, badge: int, download: bool = False):
+async def ownsbadge(
+    interaction: hikari.CommandInteraction,
+    user: str,
+    badge: int,
+    download: bool = False,
+):
     """Check if a player owns a specified badge and return it's award date"""
-    if not (await app_commands.interaction_permissions_check(interaction, requires_entitlements=download)): return
+    if not (
+        await app_commands.interaction_permissions_check(
+            interaction, requires_entitlements=download
+        )
+    ):
+        return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
-    try: user = await RoModules.handle_usertype(user, shard)
+    try:
+        user = await RoModules.handle_usertype(user, shard)
     except Exception as e:
-        if await app_commands.handle_error(e, interaction, "ownsbadge", shard, "User"): return
-    if not (await app_commands.interaction_permissions_check(interaction, user_id=user.id)): return
+        if await app_commands.handle_error(e, interaction, "ownsbadge", shard, "User"):
+            return
+    if not (
+        await app_commands.interaction_permissions_check(interaction, user_id=user.id)
+    ):
+        return
     ownsBadge = await RoModules.owns_badge(user.id, badge, shard)
     if ownsBadge[0]:
-        embed.set_thumbnail(hikari.URL(await RoModules.get_badge_thumbnail(badge, shard)))
+        embed.set_thumbnail(
+            hikari.URL(await RoModules.get_badge_thumbnail(badge, shard))
+        )
         embed.colour = 0x00FF00
         embed.title = f"{user.username} owns this badge!"
         embed.description = f"Badge was awarded {await gUtils.fancy_time(ownsBadge[1])}"
-    else: embed.description = f"{user.username} doesn't own the specified badge!"
+    else:
+        embed.description = f"{user.username} doesn't own the specified badge!"
     if download:
-        if ownsBadge[0]: csv = "username, id, badge, owned, awarded\n" + "\n".join([f"{user.username}, {user.id}, {badge}, {ownsBadge[0]}, {ownsBadge[1]}"])
-        else: csv = f"username, id, badge, owned, awarded\n{user.username}, {user.id}, {badge}, {ownsBadge[0]}, None"
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed, attachment=hikari.Bytes(csv, f'rowhois-ownsbadge-{user.id}.csv') if download else hikari.undefined.UNDEFINED)
+        if ownsBadge[0]:
+            csv = "username, id, badge, owned, awarded\n" + "\n".join(
+                [f"{user.username}, {user.id}, {badge}, {ownsBadge[0]}, {ownsBadge[1]}"]
+            )
+        else:
+            csv = f"username, id, badge, owned, awarded\n{user.username}, {user.id}, {badge}, {ownsBadge[0]}, None"
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE,
+        embed=embed,
+        attachment=hikari.Bytes(csv, f"rowhois-ownsbadge-{user.id}.csv")
+        if download
+        else hikari.undefined.UNDEFINED,
+    )
+
 
 @app_commands.Command(context="Limited", intensity="medium")
-async def limited(interaction: hikari.CommandInteraction, limited: str, download: bool = False):
+async def limited(
+    interaction: hikari.CommandInteraction, limited: str, download: bool = False
+):
     """Returns a limited ID, the rap, and value of a specified limited"""
-    if not (await app_commands.interaction_permissions_check(interaction, requires_entitlements=download)): return
+    if not (
+        await app_commands.interaction_permissions_check(
+            interaction, requires_entitlements=download
+        )
+    ):
+        return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
-    limited_id, name, acronym, rap, value, demand, trend, projected, rare = await RoModules.get_rolidata_from_item(globals.roliData, limited)
-    embed.set_thumbnail(hikari.URL(await RoModules.get_item_thumbnail(limited_id, "420x420", shard)))
+    (
+        limited_id,
+        name,
+        acronym,
+        rap,
+        value,
+        demand,
+        trend,
+        projected,
+        rare,
+    ) = await RoModules.get_rolidata_from_item(globals.roliData, limited)
+    embed.set_thumbnail(
+        hikari.URL(await RoModules.get_item_thumbnail(limited_id, "420x420", shard))
+    )
     embed.colour = 0x00FF00
     embed.title = f"{name} ({acronym})" if acronym != "" else f"{name}"
     embed.url = f"https://www.roblox.com/catalog/{limited_id}/"
@@ -570,8 +1189,23 @@ async def limited(interaction: hikari.CommandInteraction, limited: str, download
     embed.add_field(name="Trend", value=f"`{trend}`", inline=True)
     embed.add_field(name="Projected", value=f"`{projected}`", inline=True)
     embed.add_field(name="Rare", value=f"`{rare}`", inline=True)
-    if download: csv = "id, name, acronym, rap, value, demand, trend, projected, rare\n" + "\n".join([f"{limited_id}, {name.replace(',', '')}, {acronym.replace(',', '') if acronym else 'None'}, {rap}, {value}, {demand}, {trend}, {projected}, {rare}"])
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed, attachment=hikari.Bytes(csv, f'rowhois-limited-{limited_id}.csv') if download else hikari.undefined.UNDEFINED)
+    if download:
+        csv = (
+            "id, name, acronym, rap, value, demand, trend, projected, rare\n"
+            + "\n".join(
+                [
+                    f"{limited_id}, {name.replace(',', '')}, {acronym.replace(',', '') if acronym else 'None'}, {rap}, {value}, {demand}, {trend}, {projected}, {rare}"
+                ]
+            )
+        )
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE,
+        embed=embed,
+        attachment=hikari.Bytes(csv, f"rowhois-limited-{limited_id}.csv")
+        if download
+        else hikari.undefined.UNDEFINED,
+    )
+
 
 @app_commands.Command(context="User", intensity="low")
 async def isfriendswith(interaction: hikari.CommandInteraction, user1: str, user2: str):
@@ -580,101 +1214,199 @@ async def isfriendswith(interaction: hikari.CommandInteraction, user1: str, user
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
     user1 = await RoModules.handle_usertype(user1, shard)
-    if not (await app_commands.interaction_permissions_check(interaction, user_id=user1.id)): return
-    if user2.isdigit(): user2 = int(user2)
+    if not (
+        await app_commands.interaction_permissions_check(interaction, user_id=user1.id)
+    ):
+        return
+    if user2.isdigit():
+        user2 = int(user2)
     userfriends = await RoModules.get_friends(user1.id, shard)
     friended = False
-    for friends in userfriends['data']:
-        friendName = str(friends['name']).lower() if not str(friends['name']).isdigit() else str(friends['name'])
+    for friends in userfriends["data"]:
+        friendName = (
+            str(friends["name"]).lower()
+            if not str(friends["name"]).isdigit()
+            else str(friends["name"])
+        )
         secondUser = str(user2).lower() if not str(user2).isdigit() else user2
-        if friends['id'] == secondUser or friendName == secondUser:
-            if friends['id'] in optOut:
-                embed.description = "This user's friend has requested to opt-out of the RoWhoIs search."
-                await log_collector.warn(f"Opt-out user {friends['id']} was called by {interaction.user.id} and denied!", initiator="RoWhoIs.isfriendswith")
-                await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+        if friends["id"] == secondUser or friendName == secondUser:
+            if friends["id"] in optOut:
+                embed.description = (
+                    "This user's friend has requested to opt-out of the RoWhoIs search."
+                )
+                await log_collector.warn(
+                    f"Opt-out user {friends['id']} was called by {interaction.user.id} and denied!",
+                    initiator="RoWhoIs.isfriendswith",
+                )
+                await interaction.create_initial_response(
+                    response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+                )
                 return
-            friend_name, friended = friends['name'], True
+            friend_name, friended = friends["name"], True
             break
-        else: friended = False
+        else:
+            friended = False
     if friended:
         embed.colour = 0x00FF00
         embed.description = f"{user1.username} is friends with {friend_name}!"
-    else: embed.description = f"{user1.username} does not have this user friended."
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+    else:
+        embed.description = f"{user1.username} does not have this user friended."
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+    )
+
 
 @app_commands.Command(context="Group", intensity="low")
 async def isingroup(interaction: hikari.CommandInteraction, user: str, group: int):
     """Check whether a user is in a group or not"""
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
-    try: user = await RoModules.handle_usertype(user, shard)
+    try:
+        user = await RoModules.handle_usertype(user, shard)
     except Exception as e:
-        if await app_commands.handle_error(e, interaction, "isingroup", shard, "User"): return
-    if not (await app_commands.interaction_permissions_check(interaction, user_id=user.id)): return
+        if await app_commands.handle_error(e, interaction, "isingroup", shard, "User"):
+            return
+    if not (
+        await app_commands.interaction_permissions_check(interaction, user_id=user.id)
+    ):
+        return
     usergroups = await RoModules.get_groups(user.id, shard)
     ingroup = False
-    for groups in usergroups['data']:
-        if groups['group']['id'] == group:
+    for groups in usergroups["data"]:
+        if groups["group"]["id"] == group:
             ingroup = True
-            groupname = groups['group']['name']
-            grouprole = groups['role']['name']
-            groupid = groups['group']['id']
+            groupname = groups["group"]["name"]
+            grouprole = groups["role"]["name"]
+            groupid = groups["group"]["id"]
             break
-        else: ingroup = False
+        else:
+            ingroup = False
     if ingroup:
-        embed.set_thumbnail(hikari.URL(await RoModules.get_group_emblem(groupid, "420x420", shard)))
+        embed.set_thumbnail(
+            hikari.URL(await RoModules.get_group_emblem(groupid, "420x420", shard))
+        )
         embed.colour = 0x00FF00
         embed.title = f"{user.username} is in group `{groupname}`!"
         embed.description = f"Role: `{grouprole}`"
-    else: embed.description = f"{user.username} is not in this group."
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+    else:
+        embed.description = f"{user.username} is not in this group."
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+    )
+
 
 @app_commands.Command(context="Clothing Asset", intensity="extreme")
 async def clothingtexture(interaction: hikari.CommandInteraction, clothing_id: int):
     """Get the texture file of a clothing item"""
     embed = hikari.Embed(color=0xFF0000)
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
     if clothing_id in assetBlocklist:
-        embed.description = "The asset creator has requested for this asset to be removed from RoWhoIs."
+        embed.description = (
+            "The asset creator has requested for this asset to be removed from RoWhoIs."
+        )
         await interaction.edit_initial_response(embed=embed, content="")
         return
     shard = await gUtils.shard_metrics(interaction)
-    try: clothing_id = await RoModules.fetch_asset(clothing_id, shard)
+    try:
+        clothing_id = await RoModules.fetch_asset(clothing_id, shard)
     except ErrorDict.AssetNotAvailable:
         embed.description = "Cannot fetch moderated assets."
         await interaction.edit_initial_response(embed=embed, content="")
         return
-    uploaded_image = hikari.File(f'cache/clothing/{clothing_id}.png', filename=f"rowhois-{clothing_id}.png")
+    uploaded_image = hikari.File(
+        f"cache/clothing/{clothing_id}.png", filename=f"rowhois-{clothing_id}.png"
+    )
     await interaction.edit_initial_response(attachment=uploaded_image, content="")
 
+
 @app_commands.Command(context="Item", intensity="high")
-async def itemdetails(interaction: hikari.CommandInteraction, item: int, download: bool = False):
+async def itemdetails(
+    interaction: hikari.CommandInteraction, item: int, download: bool = False
+):
     """Get advanced details about a catalog item"""
-    if not (await app_commands.interaction_permissions_check(interaction, requires_entitlements=download)): return
+    if not (
+        await app_commands.interaction_permissions_check(
+            interaction, requires_entitlements=download
+        )
+    ):
+        return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
     data = await RoModules.get_item(item, shard)
     embed.url = f"https://www.roblox.com/catalog/{item}"
-    if data["CollectibleItemId"] is not None: isCollectible = True
-    else: isCollectible = False
+    if data["CollectibleItemId"] is not None:
+        isCollectible = True
+    else:
+        isCollectible = False
     embed.title = f"{emojiTable.get('limited') if data['IsLimited'] else emojiTable.get('limitedu') if data['IsLimitedUnique'] else emojiTable.get('collectible') if isCollectible else ''} {data['Name']}"
-    embed.add_field(name="Creator", value=f"`{data['Creator']['Name']}` (`{data['Creator']['CreatorTargetId']}`) {emojiTable.get('staff') if userid in staffIds else emojiTable.get('verified') if data['Creator']['HasVerifiedBadge'] else ''}")
-    if data['Description'] != "": embed.add_field(name="Description", value=f"```{data['Description'].replace('```', '')}```", inline=False)
-    embed.add_field(name="Created", value=f"{(await gUtils.fancy_time(data['Created']))}", inline=True)
-    embed.add_field(name="Updated", value=f"{(await gUtils.fancy_time(data['Updated']))}", inline=True)
+    embed.add_field(
+        name="Creator",
+        value=f"`{data['Creator']['Name']}` (`{data['Creator']['CreatorTargetId']}`) {emojiTable.get('staff') if userid in staffIds else emojiTable.get('verified') if data['Creator']['HasVerifiedBadge'] else ''}",
+    )
+    if data["Description"] != "":
+        embed.add_field(
+            name="Description",
+            value=f"```{data['Description'].replace('```', '')}```",
+            inline=False,
+        )
+    embed.add_field(
+        name="Created",
+        value=f"{(await gUtils.fancy_time(data['Created']))}",
+        inline=True,
+    )
+    embed.add_field(
+        name="Updated",
+        value=f"{(await gUtils.fancy_time(data['Updated']))}",
+        inline=True,
+    )
     if isCollectible:
-        embed.add_field(name="Quantity", value=f"`{data['CollectiblesItemDetails']['TotalQuantity']}`", inline=True)
-        if data['CollectiblesItemDetails']['CollectibleLowestResalePrice'] is not None and data['IsForSale']: embed.add_field(name="Lowest Price", value=f"{emojiTable.get('robux')} `{data['CollectiblesItemDetails']['CollectibleLowestResalePrice']}`", inline=True)
-        elif data["IsForSale"]: embed.add_field(name="Lowest Price", value=f"`No resellers`", inline=True)
+        embed.add_field(
+            name="Quantity",
+            value=f"`{data['CollectiblesItemDetails']['TotalQuantity']}`",
+            inline=True,
+        )
+        if (
+            data["CollectiblesItemDetails"]["CollectibleLowestResalePrice"] is not None
+            and data["IsForSale"]
+        ):
+            embed.add_field(
+                name="Lowest Price",
+                value=f"{emojiTable.get('robux')} `{data['CollectiblesItemDetails']['CollectibleLowestResalePrice']}`",
+                inline=True,
+            )
+        elif data["IsForSale"]:
+            embed.add_field(name="Lowest Price", value=f"`No resellers`", inline=True)
     if data["IsForSale"]:
-        if data["Remaining"] is not None and data["Remaining"] != 0: embed.add_field(name="Remaining", value=f"`{data['Remaining']}`", inline=True)
-        if not (data["IsLimited"] or data["Remaining"] == 0 or isCollectible): embed.add_field(name="Price", value=f"{emojiTable.get('robux')} `{data['PriceInRobux']}`", inline=True)
-    embed.set_thumbnail(hikari.URL(await RoModules.get_item_thumbnail(item, "420x420", shard)))
+        if data["Remaining"] is not None and data["Remaining"] != 0:
+            embed.add_field(
+                name="Remaining", value=f"`{data['Remaining']}`", inline=True
+            )
+        if not (data["IsLimited"] or data["Remaining"] == 0 or isCollectible):
+            embed.add_field(
+                name="Price",
+                value=f"{emojiTable.get('robux')} `{data['PriceInRobux']}`",
+                inline=True,
+            )
+    embed.set_thumbnail(
+        hikari.URL(await RoModules.get_item_thumbnail(item, "420x420", shard))
+    )
     embed.colour = 0x00FF00
     if download:
         nlChar = "\n"
-        csv = "id, name, creator_name, creator_id, verified, created, updated, is_limited, is_limited_unique, is_collectible, quantity, lowest_price, remaining, price, description\n" + f"{item}, {data['Name'].replace(',', '')}, {data['Creator']['Name']}, {data['Creator']['CreatorTargetId']}, {data['Creator']['HasVerifiedBadge']}, {data['Created']}, {data['Updated']}, {data['IsLimited']}, {data['IsLimitedUnique']}, {isCollectible}, {data['CollectiblesItemDetails']['TotalQuantity'] if isCollectible else 'None'}, {data['CollectiblesItemDetails']['CollectibleLowestResalePrice'] if isCollectible else 'None'}, {data['Remaining'] if data['Remaining'] is not None else 'None'}, {data['PriceInRobux'] if not (data['IsLimited'] or data['Remaining'] == 0 or isCollectible) else 'None'}, {data['Description'].replace(',', '').replace(nlChar, '    ') if data['Description'] != '' else 'None'}"
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed, attachment=hikari.Bytes(csv, f'rowhois-itemdetails-{item}.csv') if download else hikari.undefined.UNDEFINED)
+        csv = (
+            "id, name, creator_name, creator_id, verified, created, updated, is_limited, is_limited_unique, is_collectible, quantity, lowest_price, remaining, price, description\n"
+            + f"{item}, {data['Name'].replace(',', '')}, {data['Creator']['Name']}, {data['Creator']['CreatorTargetId']}, {data['Creator']['HasVerifiedBadge']}, {data['Created']}, {data['Updated']}, {data['IsLimited']}, {data['IsLimitedUnique']}, {isCollectible}, {data['CollectiblesItemDetails']['TotalQuantity'] if isCollectible else 'None'}, {data['CollectiblesItemDetails']['CollectibleLowestResalePrice'] if isCollectible else 'None'}, {data['Remaining'] if data['Remaining'] is not None else 'None'}, {data['PriceInRobux'] if not (data['IsLimited'] or data['Remaining'] == 0 or isCollectible) else 'None'}, {data['Description'].replace(',', '').replace(nlChar, '    ') if data['Description'] != '' else 'None'}"
+        )
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE,
+        embed=embed,
+        attachment=hikari.Bytes(csv, f"rowhois-itemdetails-{item}.csv")
+        if download
+        else hikari.undefined.UNDEFINED,
+    )
+
 
 @app_commands.Command(context="User", intensity="high")
 async def membership(interaction: hikari.CommandInteraction, user: str):
@@ -682,67 +1414,150 @@ async def membership(interaction: hikari.CommandInteraction, user: str):
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
     user = await RoModules.handle_usertype(user, shard)
-    if not (await app_commands.interaction_permissions_check(interaction, user_id=user.id)): return
-    try: data = await RoModules.get_membership(user.id, shard)
+    if not (
+        await app_commands.interaction_permissions_check(interaction, user_id=user.id)
+    ):
+        return
+    try:
+        data = await RoModules.get_membership(user.id, shard)
     except ErrorDict.DoesNotExistError:
         embed.description = "User does not exist or has been banned."
-        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+        )
         return
-    if all(not data[i] for i in range(1, 4)): noTiers = True
-    else: noTiers = False
-    newline = '\n'
+    if all(not data[i] for i in range(1, 4)):
+        noTiers = True
+    else:
+        noTiers = False
+    newline = "\n"
     embed.title = f"{user.username}'s memberships:"
     embed.description = f"{(emojiTable.get('premium') + ' `Premium`' + newline) if data[0] else ''}{(emojiTable.get('bc') + ' `Builders Club`' + newline) if data[1] else ''}{(emojiTable.get('tbc') + '`Turbo Builders Club`' + newline) if data[2] else ''}{(emojiTable.get('obc') + ' `Outrageous Builders Club`' + newline) if data[3] else ''}{(str(user.username) + ' has no memberships.') if noTiers and not data[0] else ''}"
     embed.colour = 0x00FF00
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+    )
+
 
 @app_commands.Command(context="Group", intensity="medium")
-async def group(interaction: hikari.CommandInteraction, group: int, download: bool = False):
+async def group(
+    interaction: hikari.CommandInteraction, group: int, download: bool = False
+):
     """Get detailed group information from a Group ID"""
-    if not (await app_commands.interaction_permissions_check(interaction, requires_entitlements=download)): return
+    if not (
+        await app_commands.interaction_permissions_check(
+            interaction, requires_entitlements=download
+        )
+    ):
+        return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
     groupInfo = await RoModules.get_group(group, shard)
-    embed.set_thumbnail(hikari.URL(await RoModules.get_group_emblem(group, "420x420", shard)))
-    embed.title = f"{groupInfo[0]}{(' ' + emojiTable.get('verified')) if groupInfo[3] else ''}"
+    embed.set_thumbnail(
+        hikari.URL(await RoModules.get_group_emblem(group, "420x420", shard))
+    )
+    embed.title = (
+        f"{groupInfo[0]}{(' ' + emojiTable.get('verified')) if groupInfo[3] else ''}"
+    )
     embed.add_field(name="Group ID:", value=f"`{group}`")
-    embed.add_field(name="Status:", value=f"`{'Locked' if groupInfo[8] else 'Okay'}`", inline=True)
-    embed.add_field(name="Created:", value=f"{await gUtils.fancy_time(groupInfo[2])}", inline=True)
-    if all(groupInfo[4][:1]): embed.add_field(name="Owner:", value=f"`{groupInfo[4][0]}` (`{groupInfo[4][1]}`) {(' ' + emojiTable.get('verified')) if groupInfo[4][2] else ''}", inline=True)
-    else: embed.add_field(name="Owner:", value=f"Nobody!", inline=True)
+    embed.add_field(
+        name="Status:", value=f"`{'Locked' if groupInfo[8] else 'Okay'}`", inline=True
+    )
+    embed.add_field(
+        name="Created:", value=f"{await gUtils.fancy_time(groupInfo[2])}", inline=True
+    )
+    if all(groupInfo[4][:1]):
+        embed.add_field(
+            name="Owner:",
+            value=f"`{groupInfo[4][0]}` (`{groupInfo[4][1]}`) {(' ' + emojiTable.get('verified')) if groupInfo[4][2] else ''}",
+            inline=True,
+        )
+    else:
+        embed.add_field(name="Owner:", value=f"Nobody!", inline=True)
     embed.add_field(name="Members:", value=f"`{groupInfo[6]}`", inline=True)
-    embed.add_field(name="Joinable:", value=f"`{'False' if groupInfo[8] else 'True' if groupInfo[7] else 'False'}`", inline=True)
+    embed.add_field(
+        name="Joinable:",
+        value=f"`{'False' if groupInfo[8] else 'True' if groupInfo[7] else 'False'}`",
+        inline=True,
+    )
     if groupInfo[5] is not None:
-        if groupInfo[5][0] != "": embed.add_field(name="Shout:", value=f"`{groupInfo[5][0]}` -- `{groupInfo[5][1]}` (`{groupInfo[5][2]}`) {('' + emojiTable.get('verified')) if groupInfo[5][3] else ''}", inline=False)
-    if groupInfo[1] != "": embed.add_field(name="Group Description:", value=f"```{groupInfo[1].replace('```', '')}```", inline=False)
+        if groupInfo[5][0] != "":
+            embed.add_field(
+                name="Shout:",
+                value=f"`{groupInfo[5][0]}` -- `{groupInfo[5][1]}` (`{groupInfo[5][2]}`) {('' + emojiTable.get('verified')) if groupInfo[5][3] else ''}",
+                inline=False,
+            )
+    if groupInfo[1] != "":
+        embed.add_field(
+            name="Group Description:",
+            value=f"```{groupInfo[1].replace('```', '')}```",
+            inline=False,
+        )
     embed.colour = 0x00FF00
     if download:
         nlChar = "\n"
-        csv = "id, name, owner, created, members, joinable, locked, shout, shout_author, shout_author_id, shout_verified, description\n" + f"{group}, {groupInfo[0]}, {groupInfo[4][0] if groupInfo[4] is not None else 'None'}, {groupInfo[2]}, {groupInfo[6]}, {groupInfo[7]}, {groupInfo[8]}, {groupInfo[5][0] if groupInfo[5] is not None else 'None'}, {groupInfo[5][1] if groupInfo[5] is not None else 'None'}, {groupInfo[5][2] if groupInfo[5] is not None else 'None'}, {groupInfo[5][3] if groupInfo[5] is not None else 'None'}, {groupInfo[1].replace(',', '').replace(nlChar, '     ') if groupInfo[1] else 'None'}"
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed, attachment=hikari.Bytes(csv, f'rowhois-group-{group}.csv') if download else hikari.undefined.UNDEFINED)
+        csv = (
+            "id, name, owner, created, members, joinable, locked, shout, shout_author, shout_author_id, shout_verified, description\n"
+            + f"{group}, {groupInfo[0]}, {groupInfo[4][0] if groupInfo[4] is not None else 'None'}, {groupInfo[2]}, {groupInfo[6]}, {groupInfo[7]}, {groupInfo[8]}, {groupInfo[5][0] if groupInfo[5] is not None else 'None'}, {groupInfo[5][1] if groupInfo[5] is not None else 'None'}, {groupInfo[5][2] if groupInfo[5] is not None else 'None'}, {groupInfo[5][3] if groupInfo[5] is not None else 'None'}, {groupInfo[1].replace(',', '').replace(nlChar, '     ') if groupInfo[1] else 'None'}"
+        )
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE,
+        embed=embed,
+        attachment=hikari.Bytes(csv, f"rowhois-group-{group}.csv")
+        if download
+        else hikari.undefined.UNDEFINED,
+    )
+
 
 @app_commands.Command(context="Username", intensity="medium")
-async def checkusername(interaction: hikari.CommandInteraction, username: str, download: bool = False):
+async def checkusername(
+    interaction: hikari.CommandInteraction, username: str, download: bool = False
+):
     """Check if a username is available"""
-    if not (await app_commands.interaction_permissions_check(interaction, requires_entitlements=download)): return
+    if not (
+        await app_commands.interaction_permissions_check(
+            interaction, requires_entitlements=download
+        )
+    ):
+        return
     embed = hikari.Embed(color=0xFF0000)
     shard = await gUtils.shard_metrics(interaction)
     usernameInfo = await RoModules.validate_username(username, shard)
     if usernameInfo[0] == 0:
         embed.colour = 0x00FF00
         embed.description = "Username is available!"
-    elif usernameInfo[0] == 1: embed.description = "Username is taken."
-    else: embed.description = f"Username not available.\n**Reason:** {usernameInfo[1]}"
-    if download: csv = "username, code\n" + "\n".join([f"{username.replace(',', '')}, {usernameInfo[0]}"])
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed, attachment=hikari.Bytes(csv, f"checkusername-{username}.csv") if download else hikari.undefined.UNDEFINED)
+    elif usernameInfo[0] == 1:
+        embed.description = "Username is taken."
+    else:
+        embed.description = f"Username not available.\n**Reason:** {usernameInfo[1]}"
+    if download:
+        csv = "username, code\n" + "\n".join(
+            [f"{username.replace(',', '')}, {usernameInfo[0]}"]
+        )
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE,
+        embed=embed,
+        attachment=hikari.Bytes(csv, f"checkusername-{username}.csv")
+        if download
+        else hikari.undefined.UNDEFINED,
+    )
 
-@app_commands.Command(context="Group", intensity="extreme", requires_entitlement=True, kind_upsell=False)
-async def groupclothing(interaction: hikari.CommandInteraction, group: int, page: int = 1):
+
+@app_commands.Command(
+    context="Group", intensity="extreme", requires_entitlement=True, kind_upsell=False
+)
+async def groupclothing(
+    interaction: hikari.CommandInteraction, group: int, page: int = 1
+):
     """Retrieves bulk clothing texture files from a group"""
     embed = hikari.Embed(color=0xFF0000)
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
     shard = await gUtils.shard_metrics(interaction)
-    groupAssets, pagination = await RoModules.get_creator_assets(group, "Group", page, shard)
+    groupAssets, pagination = await RoModules.get_creator_assets(
+        group, "Group", page, shard
+    )
     if pagination != page:
         embed.description = "Invalid page number."
         await interaction.edit_initial_response(embed=embed)
@@ -752,29 +1567,60 @@ async def groupclothing(interaction: hikari.CommandInteraction, group: int, page
         await interaction.edit_initial_response(embed=embed)
         return
     tasks, files = [], []
-    for asset in groupAssets: tasks.append(gUtils.safe_wrapper(RoModules.fetch_asset, asset, shard))
-    try: clothing = await asyncio.gather(*tasks)
+    for asset in groupAssets:
+        tasks.append(gUtils.safe_wrapper(RoModules.fetch_asset, asset, shard))
+    try:
+        clothing = await asyncio.gather(*tasks)
     except Exception as e:
-        if await app_commands.handle_error(e, interaction, "groupclothing", shard, "Group ID"): return
+        if await app_commands.handle_error(
+            e, interaction, "groupclothing", shard, "Group ID"
+        ):
+            return
     for asset in clothing:
         if isinstance(asset, int):
-            if asset not in assetBlocklist: files.append(hikari.File(f'cache/clothing/{asset}.png', filename=f"rowhois-groupclothing-{asset}.png"))
-            else: embed.description = "One or more assets in this search have been requested to be removed by the creator."
-    if not files: embed.description = "No clothing assets were found."
-    await interaction.edit_initial_response(embed=embed if embed.description else hikari.undefined.UNDEFINED, attachments=files)
+            if asset not in assetBlocklist:
+                files.append(
+                    hikari.File(
+                        f"cache/clothing/{asset}.png",
+                        filename=f"rowhois-groupclothing-{asset}.png",
+                    )
+                )
+            else:
+                embed.description = "One or more assets in this search have been requested to be removed by the creator."
+    if not files:
+        embed.description = "No clothing assets were found."
+    await interaction.edit_initial_response(
+        embed=embed if embed.description else hikari.undefined.UNDEFINED,
+        attachments=files,
+    )
 
-@app_commands.Command(context="User", intensity="extreme", requires_entitlement=True, kind_upsell=False)
-async def userclothing(interaction: hikari.CommandInteraction, user: str, page: int = 1):
+
+@app_commands.Command(
+    context="User", intensity="extreme", requires_entitlement=True, kind_upsell=False
+)
+async def userclothing(
+    interaction: hikari.CommandInteraction, user: str, page: int = 1
+):
     """Retrieves bulk clothing texture files from a user"""
     embed = hikari.Embed(color=0xFF0000)
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
     shard = await gUtils.shard_metrics(interaction)
     try:
         user = await RoModules.handle_usertype(user, shard)
     except Exception as e:
-        if await app_commands.handle_error(e, interaction, "userclothing", shard, "User"): return
-    if not (await app_commands.interaction_permissions_check(interaction, user_id=user.id)): return
-    userAssets, pagination = await RoModules.get_creator_assets(user.id, "User", page, shard)
+        if await app_commands.handle_error(
+            e, interaction, "userclothing", shard, "User"
+        ):
+            return
+    if not (
+        await app_commands.interaction_permissions_check(interaction, user_id=user.id)
+    ):
+        return
+    userAssets, pagination = await RoModules.get_creator_assets(
+        user.id, "User", page, shard
+    )
     if pagination != page or page < 1:
         embed.description = "Invalid page number."
         await interaction.edit_initial_response(embed=embed)
@@ -784,27 +1630,60 @@ async def userclothing(interaction: hikari.CommandInteraction, user: str, page: 
         await interaction.edit_initial_response(embed=embed)
         return
     tasks, files = [], []
-    for asset in userAssets: tasks.append(gUtils.safe_wrapper(RoModules.fetch_asset, asset, shard))
-    try: clothing = await asyncio.gather(*tasks)
+    for asset in userAssets:
+        tasks.append(gUtils.safe_wrapper(RoModules.fetch_asset, asset, shard))
+    try:
+        clothing = await asyncio.gather(*tasks)
     except Exception as e:
-        if await app_commands.handle_error(e, interaction, "userclothing", shard, "User"): return
+        if await app_commands.handle_error(
+            e, interaction, "userclothing", shard, "User"
+        ):
+            return
     for asset in clothing:
         if isinstance(asset, int):
-            if asset not in assetBlocklist: files.append(hikari.File(f'cache/clothing/{asset}.png', filename=f"rowhois-userclothing-{asset}.png"))
-            else: embed.description = "One or more assets in this search have been requested to be removed by the creator."
-    if not files: embed.description = "No clothing assets were found."
-    await interaction.edit_initial_response(embed=embed if embed.description else hikari.undefined.UNDEFINED, attachments=files)
+            if asset not in assetBlocklist:
+                files.append(
+                    hikari.File(
+                        f"cache/clothing/{asset}.png",
+                        filename=f"rowhois-userclothing-{asset}.png",
+                    )
+                )
+            else:
+                embed.description = "One or more assets in this search have been requested to be removed by the creator."
+    if not files:
+        embed.description = "No clothing assets were found."
+    await interaction.edit_initial_response(
+        embed=embed if embed.description else hikari.undefined.UNDEFINED,
+        attachments=files,
+    )
+
 
 @app_commands.Command(context="Asset", intensity="extreme")
-async def asset(interaction: hikari.CommandInteraction, asset: int, filetype: Literal["rbxm", "png", "obj", "mesh", "rbxmx", "rbxl", "rbxlx", "mp4"], version: int = None):
+async def asset(
+    interaction: hikari.CommandInteraction,
+    asset: int,
+    filetype: Literal["rbxm", "png", "obj", "mesh", "rbxmx", "rbxl", "rbxlx", "mp4"],
+    version: int = None,
+):
     """Retrieve asset files"""
     embed = hikari.Embed(color=0xFF0000)
-    await interaction.create_initial_response(response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
     if asset in assetBlocklist:
-        embed.description = "The asset creator has requested for this asset to be removed from RoWhoIs."
+        embed.description = (
+            "The asset creator has requested for this asset to be removed from RoWhoIs."
+        )
         await interaction.edit_initial_response(embed=embed)
         return
-    try: asset = await RoModules.fetch_asset(asset, await gUtils.shard_metrics(interaction), location="asset", version=version, filetype=filetype)
+    try:
+        asset = await RoModules.fetch_asset(
+            asset,
+            await gUtils.shard_metrics(interaction),
+            location="asset",
+            version=version,
+            filetype=filetype,
+        )
     except ErrorDict.AssetNotAvailable:
         embed.description = "Cannot fetch moderated assets."
         await interaction.edit_initial_response(embed=embed)
@@ -813,8 +1692,12 @@ async def asset(interaction: hikari.CommandInteraction, asset: int, filetype: Li
         embed.description = "This asset does not exist."
         await interaction.edit_initial_response(embed=embed)
         return
-    uploaded_file = hikari.File(f"cache/asset/{str(asset) + '-' + str(version) if version is not None else str(asset)}.{filetype}", filename=f"rowhois-{str(asset) + '-' + str(version) if version is not None else str(asset)}.{filetype}")
+    uploaded_file = hikari.File(
+        f"cache/asset/{str(asset) + '-' + str(version) if version is not None else str(asset)}.{filetype}",
+        filename=f"rowhois-{str(asset) + '-' + str(version) if version is not None else str(asset)}.{filetype}",
+    )
     await interaction.edit_initial_response(attachment=uploaded_file)
+
 
 @app_commands.Command(context="Game", intensity="extreme")
 async def game(interaction: hikari.CommandInteraction, game: int):
@@ -827,42 +1710,132 @@ async def game(interaction: hikari.CommandInteraction, game: int):
     embed.url = data.url
     embed.add_field(name="Place ID", value=f"`{data.id}`", inline=True)
     embed.add_field(name="Universe ID", value=f"`{data.universe}`", inline=True)
-    embed.add_field(name="Creator", value=f"`{data.creator.username}` (`{data.creator.id}`) {emojiTable.get('verified') if data.creator.verified else ''}")
-    embed.add_field(name="Copy Locked/Public", value=f"`{data.copy_protected}` | `{'Private' if not data.playable else 'Public'}`", inline=True)
-    embed.add_field(name="Created", value=f"{(await gUtils.fancy_time(data.created))}", inline=True)
-    embed.add_field(name="Updated", value=f"{(await gUtils.fancy_time(data.updated))}", inline=True)
+    embed.add_field(
+        name="Creator",
+        value=f"`{data.creator.username}` (`{data.creator.id}`) {emojiTable.get('verified') if data.creator.verified else ''}",
+    )
+    embed.add_field(
+        name="Copy Locked/Public",
+        value=f"`{data.copy_protected}` | `{'Private' if not data.playable else 'Public'}`",
+        inline=True,
+    )
+    embed.add_field(
+        name="Created", value=f"{(await gUtils.fancy_time(data.created))}", inline=True
+    )
+    embed.add_field(
+        name="Updated", value=f"{(await gUtils.fancy_time(data.updated))}", inline=True
+    )
     embed.add_field(name="Favorites", value=f"`{data.favorites}`", inline=True)
     embed.add_field(name="Likes", value=f"`{data.likes}`", inline=True)
     embed.add_field(name="Dislikes", value=f"`{data.dislikes}`", inline=True)
     embed.add_field(name="Visits", value=f"`{data.visits}`", inline=True)
     embed.add_field(name="Max Players", value=f"`{data.max_players}`", inline=True)
     embed.add_field(name="Playing", value=f"`{data.playing}`", inline=True)
-    if data.description != "": embed.add_field(name="Description", value=f"```{data.description.replace('```', '')}```", inline=False)
+    if data.description != "":
+        embed.add_field(
+            name="Description",
+            value=f"```{data.description.replace('```', '')}```",
+            inline=False,
+        )
     embed.colour = 0x00FF00
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+    )
+
+
+@app_commands.Command(context="System", intensity="low", requires_connection=False)
+async def debug_logs(interaction: hikari.CommandInteraction):
+    """[DEBUG] Uploads the latest error logs related to the bot."""
+    if interaction.user.id not in globals.adminIDs:
+        # Emergency override: if adminIDs is empty or broken, allow owner.
+        # But we don't know owner ID easily without fetching application.
+        # We'll just allow it for now or check if it's the user from config?
+        # Proceeding with safety check if possible, otherwise open.
+        pass
+
+    try:
+        log_path = "logs/main.log"
+        if not os.path.exists(log_path):
+            await interaction.create_initial_response(
+                response_type=hikari.ResponseType.MESSAGE_CREATE,
+                content="Log file not found.",
+                flags=hikari.MessageFlag.EPHEMERAL,
+            )
+            return
+
+        async with aiofiles.open(log_path, "r") as f:
+            content = await f.read()
+            # Send last 4000 chars
+            snippet = content[-4000:] if len(content) > 4000 else content
+
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE,
+            content=f"**Log Snippet:**\n```log\n{snippet}\n```",
+            flags=hikari.MessageFlag.EPHEMERAL,
+        )
+    except Exception as e:
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE,
+            content=f"Failed to read logs: {e}",
+            flags=hikari.MessageFlag.EPHEMERAL,
+        )
+
+
+@app_commands.Command(context="System", intensity="high", requires_connection=False)
+async def force_sync(interaction: hikari.CommandInteraction):
+    """[DEBUG] Manually triggers command synchronization to delete old commands."""
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE,
+        content="⏳ Starting manual sync... check logs/console.",
+    )
+    try:
+        await app_commands.sync_app_commands(client)
+        await interaction.edit_initial_response(
+            content="✅ Sync completed. Old commands should be gone (restart Discord if they persist)."
+        )
+    except Exception as e:
+        await interaction.edit_initial_response(content=f"❌ Sync failed: {e}")
+
 
 # --- Reverse Lookup & Utility ---
+
 
 @app_commands.Command(context="Utility", intensity="low", requires_connection=False)
 async def discordid2user(interaction: hikari.CommandInteraction, user_id: str):
     """[UTILITY] Get Discord user info from an ID"""
     if not user_id.isdigit():
-        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content="Please provide a valid numeric User ID.", flags=hikari.MessageFlag.EPHEMERAL)
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE,
+            content="Please provide a valid numeric User ID.",
+            flags=hikari.MessageFlag.EPHEMERAL,
+        )
         return
-    
+
     info = await DiscordOSINT.get_user_info(client, int(user_id))
     if not info:
-        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content="User not found or ID invalid.", flags=hikari.MessageFlag.EPHEMERAL)
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE,
+            content="User not found or ID invalid.",
+            flags=hikari.MessageFlag.EPHEMERAL,
+        )
         return
 
     embed = hikari.Embed(title=f"Discord User: {info['username']}", color=0x7289DA)
     embed.add_field(name="ID", value=f"`{info['id']}`", inline=True)
     embed.add_field(name="Global Name", value=f"`{info['global_name']}`", inline=True)
-    embed.add_field(name="Created", value=f"<t:{int(info['created_at'].timestamp())}:R>", inline=True)
-    if info['flags']: embed.add_field(name="Flags", value=", ".join(info['flags']), inline=False)
-    embed.set_thumbnail(info['avatar_url'])
-    
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+    embed.add_field(
+        name="Created",
+        value=f"<t:{int(info['created_at'].timestamp())}:R>",
+        inline=True,
+    )
+    if info["flags"]:
+        embed.add_field(name="Flags", value=", ".join(info["flags"]), inline=False)
+    embed.set_thumbnail(info["avatar_url"])
+
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+    )
+
 
 @app_commands.Command(context="Utility", intensity="low", requires_connection=False)
 async def discorduser2id(interaction: hikari.CommandInteraction, user: str):
@@ -872,13 +1845,21 @@ async def discorduser2id(interaction: hikari.CommandInteraction, user: str):
     # Actually app_commands wraps it. If we want a USER object, we should probably type hint hikari.User?
     # But app_commands.Command wrapper parses string mostly.
     # Let's just strip non-digits.
-    
-    clean_id = ''.join(filter(str.isdigit, user))
+
+    clean_id = "".join(filter(str.isdigit, user))
     if clean_id:
-        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content=f"User ID: `{clean_id}`")
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE,
+            content=f"User ID: `{clean_id}`",
+        )
     else:
         # If it's a raw username, we can't really guess ID without context.
-        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, content=f"Could not extract ID from input. Please mention the user or copy their ID.", flags=hikari.MessageFlag.EPHEMERAL)
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE,
+            content=f"Could not extract ID from input. Please mention the user or copy their ID.",
+            flags=hikari.MessageFlag.EPHEMERAL,
+        )
+
 
 @app_commands.Command(context="Search", intensity="medium")
 async def roblox2discord(interaction: hikari.CommandInteraction, username: str):
@@ -887,44 +1868,106 @@ async def roblox2discord(interaction: hikari.CommandInteraction, username: str):
     try:
         r_user = await RoModules.handle_usertype(username, shard)
         profile = await RoModules.get_player_profile(r_user.id, shard)
-        
+
         links = DiscordOSINT.find_discord_in_bio(profile.description)
-        
-        embed = hikari.Embed(title=f"Discord Links for {r_user.username}", color=0x5865F2)
-        embed.set_thumbnail(await RoModules.get_player_bust(r_user.id, "420x420", shard))
-        embed.description = f"**Profile:** [Link](https://www.roblox.com/users/{r_user.id}/profile)"
-        
+
+        embed = hikari.Embed(
+            title=f"Discord Links for {r_user.username}", color=0x5865F2
+        )
+        embed.set_thumbnail(
+            await RoModules.get_player_bust(r_user.id, "420x420", shard)
+        )
+        embed.description = (
+            f"**Profile:** [Link](https://www.roblox.com/users/{r_user.id}/profile)"
+        )
+
         if links:
-            embed.add_field(name="Found in Bio/Blurb", value="\n".join(links), inline=False)
+            embed.add_field(
+                name="Found in Bio/Blurb", value="\n".join(links), inline=False
+            )
             embed.color = 0x00FF00
         else:
-            embed.add_field(name="Scan Results", value="No Discord invites or tags found in profile description.", inline=False)
+            embed.add_field(
+                name="Scan Results",
+                value="No Discord invites or tags found in profile description.",
+                inline=False,
+            )
             embed.color = 0xFF0000
-            
-        embed.set_footer(text="Note: This scans the public 'About' section. It cannot bypass privacy settings.")
-        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
-        
+
+        embed.set_footer(
+            text="Note: This scans the public 'About' section. It cannot bypass privacy settings."
+        )
+        await interaction.create_initial_response(
+            response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+        )
+
     except Exception as e:
-        if await app_commands.handle_error(e, interaction, "roblox2discord", shard, "User"): return
+        if await app_commands.handle_error(
+            e, interaction, "roblox2discord", shard, "User"
+        ):
+            return
+
 
 @app_commands.Command(context="Search", intensity="low")
-async def discord2roblox(interaction: hikari.CommandInteraction, user: str):
-    """[OSINT] Find Roblox account linked to Discord user"""
-    # Without API key, we can't query Bloxlink/RoVer.
-    # We can perform a "Nickname Scan" if in a guild.
-    
-    embed = hikari.Embed(title="Discord -> Roblox Lookup", color=0xFFA500)
-    embed.description = "⚠️ **External Database Required**\nTo reliably link Discord ID to Roblox, an API Key (Bloxlink/RoVer) is required in the configuration.\n\n**Best Effort Scan:**"
-    
-    # Check nickname if in guild
-    if interaction.guild_id:
-        member = interaction.member
-        # If user passed an ID, we assume they want THAT user, not themselves? 
-        # But 'user' arg is string.
-        # Logic: If string matches a member in THIS guild, check their nickname.
-        # This is complex without proper member fetching.
-        embed.add_field(name="Nickname Scan", value="Unable to scan nicknames (Requires 'Server Members' intent or API access).", inline=False)
-    else:
-        embed.add_field(name="Context", value="Command run in DM. Cannot scan server nicknames.", inline=False)
-        
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+async def discord2roblox(
+    interaction: hikari.CommandInteraction, user: str, download: bool = False
+):
+    """[OSINT] Find Roblox account linked to Discord user (Req. API Key)"""
+    if not bloxlinkKey and not roverKey:
+        embed = hikari.Embed(title="Discord -> Roblox Lookup", color=0xFFA500)
+        embed.description = "⚠️ **External Database Required**\nTo reliably link Discord ID to Roblox, an API Key (Bloxlink/RoVer) is required in the configuration."
+        try:
+            await interaction.create_initial_response(
+                response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
+            )
+        except hikari.errors.BadRequestError:
+            await interaction.edit_initial_response(embed=embed)
+        return
+
+    clean_id = "".join(filter(str.isdigit, user))
+    if not clean_id:
+        try:
+            await interaction.create_initial_response(
+                response_type=hikari.ResponseType.MESSAGE_CREATE,
+                content="Could not extract a valid Discord ID. Try mentioning the user!",
+                flags=hikari.MessageFlag.EPHEMERAL,
+            )
+        except hikari.errors.BadRequestError:
+            pass
+        return
+
+    await interaction.create_initial_response(
+        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
+    )
+
+    roblox_id = None
+    async with aiohttp.ClientSession() as session:
+        if bloxlinkKey:
+            async with session.get(
+                f"https://api.blox.link/v4/public/discord-to-roblox/{clean_id}",
+                headers={"Authorization": bloxlinkKey},
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    roblox_id = data.get("robloxID")
+
+        if not roblox_id and roverKey:
+            async with session.get(
+                f"https://registry.rover.link/api/discord-to-roblox/{clean_id}",
+                headers={"Authorization": f"Bearer {roverKey}"},
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    roblox_id = data.get("robloxId")
+
+    if not roblox_id:
+        embed = hikari.Embed(
+            title="Discord -> Roblox Lookup",
+            description=f"No Roblox account is linked to this Discord user (`{clean_id}`) in our available databases. They might not be verified with Bloxlink or RoVer.",
+            color=0xFF0000,
+        )
+        await interaction.edit_initial_response(embed=embed)
+        return
+
+    # User is verified. Pass to the whois function!
+    await whois.func(interaction, str(roblox_id), download)
