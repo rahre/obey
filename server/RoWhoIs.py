@@ -163,26 +163,30 @@ async def member_join(event: hikari.MemberCreateEvent):
 @app_commands.Command(context="Command", intensity="low", requires_connection=False)
 async def help(interaction: hikari.CommandInteraction):
     """List the tactical commands available to the Black Knights."""
-    embed = hikari.Embed(title="Tactical Command Overview: Aegis OSINT Suite", color=0x990000)
-    embed.description = "*\"The only ones who should kill, are those who are prepared to be killed.\"*"
-    
-    # OSINT Commands
-    embed.add_field(name="[OSINT] geass_lookup", value="Discord intel (ID, Creation, Flags)", inline=True)
-    embed.add_field(name="[OSINT] eye_of_geass", value="Subject origin arrival (Invite tracking)", inline=True)
-    embed.add_field(name="[SCAN] sherlock_scan", value="Multi-platform digital footprint search", inline=True)
-    
-    # Defense/Investigation
-    embed.add_field(name="[DETECT] absolute_order", value="Compare two subjects (Alt Check)", inline=True)
-    embed.add_field(name="[MAP] absolute_friend_map", value="Analyze a subject's associates", inline=True)
-    embed.add_field(name="[SPY] black_knights_spy", value="Monitor group membership changes", inline=True)
-    embed.add_field(name="[INTEL] knightmare_intel", value="Extract target group rank distribution", inline=True)
-    embed.add_field(name="[FENRIR] fenrir_track", value="Deploy a wolf to track presence status", inline=True)
-    embed.add_field(name="[HISTORY] archive_search", value="Retrieve subject's recorded history", inline=True)
-    
-    me = client.get_me()
-    footer_icon = me.avatar_url if me else None
-    embed.set_footer(text="Absolute Order: Use these tools which Zero has granted you.", icon=footer_icon)
-    await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+    try:
+        embed = hikari.Embed(title="Tactical Command Overview: Aegis OSINT Suite", color=0x990000)
+        embed.description = "*\"The only ones who should kill, are those who are prepared to be killed.\"*"
+        
+        # OSINT Commands
+        embed.add_field(name="[OSINT] geass_lookup", value="Discord intel (ID, Creation, Flags)", inline=True)
+        embed.add_field(name="[OSINT] eye_of_geass", value="Subject origin arrival (Invite tracking)", inline=True)
+        embed.add_field(name="[SCAN] sherlock_scan", value="Multi-platform digital footprint search", inline=True)
+        
+        # Defense/Investigation
+        embed.add_field(name="[DETECT] absolute_order", value="Compare two subjects (Alt Check)", inline=True)
+        embed.add_field(name="[MAP] absolute_friend_map", value="Analyze a subject's associates", inline=True)
+        embed.add_field(name="[SPY] black_knights_spy", value="Monitor group membership changes", inline=True)
+        embed.add_field(name="[INTEL] knightmare_intel", value="Extract target group rank distribution", inline=True)
+        embed.add_field(name="[FENRIR] fenrir_track", value="Deploy a wolf to track presence status", inline=True)
+        embed.add_field(name="[HISTORY] archive_search", value="Retrieve subject's recorded history", inline=True)
+        
+        me = client.get_me()
+        footer_icon = me.avatar_url if me else None
+        embed.set_footer(text="Absolute Order: Use these tools which Zero has granted you.", icon=footer_icon)
+        await interaction.create_initial_response(response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed)
+    except Exception as e:
+        await log_collector.error(f"HELP COMMAND CRASH: {type(e).__name__}: {e}", initiator="RoWhoIs.help")
+        raise
 
 @app_commands.Command(context="Command", intensity="low", requires_connection=False)
 async def about(interaction: hikari.CommandInteraction):

@@ -168,7 +168,7 @@ async def heartbeat() -> bool:
     try:
         data = await Roquest("GET", "premiumfeatures", "v1/users/1/validate-membership", bypass_proxy=True)
         if data[0] == 200: return True
-        if data[0] == 403: return None
+        if data[0] in [401, 403]: return None  # Auth issue, but Roblox is reachable
         return False
     except Exception as e:
         await log_collector.warn(f"Heartbeat error: {e}", initiator="RoWhoIs.heartbeat")
