@@ -354,11 +354,8 @@ async def help(interaction: hikari.CommandInteraction):
             name="[UTIL] discorduser2id", value="Get ID from User", inline=True
         )
 
-        me = client.get_me()
-        footer_icon = me.avatar_url if me else None
         embed.set_footer(
-            text="Absolute Order: Use these tools which Zero has granted you.",
-            icon=footer_icon,
+            text="Absolute Order: Use these tools which Zero has granted you."
         )
         await interaction.create_initial_response(
             response_type=hikari.ResponseType.MESSAGE_CREATE, embed=embed
