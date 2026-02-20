@@ -5,11 +5,6 @@ from server import (
     globals,
     DiscordOSINT,
     InviteTracker,
-    GroupSpy,
-    Investigation,
-    Archives,
-    ActivityTracker,
-    SherlockIntegration,
 )
 from utils import logger, ErrorDict, gUtils, typedefs
 import asyncio, hikari, io, aiohttp, inspect, time, json, aioconsole, datetime
@@ -142,8 +137,7 @@ client = RoWhoIs(
     | hikari.Intents.GUILD_PRESENCES
 )
 invite_tracker = InviteTracker.InviteTracker(client)
-group_spy = GroupSpy.GroupSpy(client)
-activity_tracker = ActivityTracker.ActivityTracker(client)
+shardAnalytics = gUtils.ShardAnalytics(0, False)
 shardAnalytics = gUtils.ShardAnalytics(0, False)
 log_collector = logger.AsyncLogCollector("logs/main.log")
 
@@ -160,11 +154,8 @@ async def start(event: hikari.StartedEvent):
     )
     globals.init(eggEnabled=eggEnabled)
     await Roquest.start_background_tasks()
-    await Archives.init_db()
     await app_commands.sync_app_commands(client)
     loop = asyncio.get_running_loop()
-    loop.create_task(group_spy.spy_loop())
-    loop.create_task(activity_tracker.tracker_loop())
     loop.create_task(input_listener())
 
 
@@ -342,43 +333,6 @@ async def help(interaction: hikari.CommandInteraction):
         embed.add_field(
             name="[OSINT] eye_of_geass",
             value="Subject origin arrival (Invite tracking)",
-            inline=True,
-        )
-        embed.add_field(
-            name="[SCAN] sherlock_scan",
-            value="Multi-platform digital footprint search",
-            inline=True,
-        )
-
-        # Defense/Investigation
-        embed.add_field(
-            name="[DETECT] absolute_order",
-            value="Compare two subjects (Alt Check)",
-            inline=True,
-        )
-        embed.add_field(
-            name="[MAP] absolute_friend_map",
-            value="Analyze a subject's associates",
-            inline=True,
-        )
-        embed.add_field(
-            name="[SPY] black_knights_spy",
-            value="Monitor group membership changes",
-            inline=True,
-        )
-        embed.add_field(
-            name="[INTEL] knightmare_intel",
-            value="Extract target group rank distribution",
-            inline=True,
-        )
-        embed.add_field(
-            name="[FENRIR] fenrir_track",
-            value="Deploy a wolf to track presence status",
-            inline=True,
-        )
-        embed.add_field(
-            name="[HISTORY] archive_search",
-            value="Retrieve subject's recorded history",
             inline=True,
         )
 
@@ -620,271 +574,6 @@ async def geass_lookup(interaction: hikari.CommandInteraction, user_id: str):
     await interaction.edit_initial_response(embed=embed)
 
 
-@app_commands.Command(context="Group", intensity="high", requires_connection=True)
-async def black_knights_spy(
-    interaction: hikari.CommandInteraction, group_id: int, channel_id: str = None
-):
-    """[GROUP SPY] Monitor a Roblox group for new members and leaves."""
-    target_channel = int(channel_id) if channel_id else interaction.channel_id
-
-    await interaction.create_initial_response(
-        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
-    )
-
-    await group_spy.add_group(group_id, target_channel)
-
-    embed = hikari.Embed(title="BLACK KNIGHTS DEPLOYED", color=0x990000)
-    embed.description = f"Operative is now monitoring Group `{group_id}`.\nIntel will be reported to <#{target_channel}>."
-    embed.set_footer(text="Zero's absolute orders are being carried out.")
-
-    await interaction.edit_initial_response(embed=embed)
-
-
-@app_commands.Command(
-    context="Investigation", intensity="high", requires_connection=True
-)
-async def absolute_order(
-    interaction: hikari.CommandInteraction, target1: str, target2: str
-):
-    """[ALT CHECK] Compare two Roblox accounts to detect if they are the same person."""
-    await interaction.create_initial_response(
-        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
-    )
-    shard = await gUtils.shard_metrics(interaction)
-
-    try:
-        # Resolve users
-        u1 = await RoModules.handle_usertype(target1, shard)
-        u2 = await RoModules.handle_usertype(target2, shard)
-
-        results = await Investigation.check_roblox_alt(u1.id, u2.id, shard)
-
-        embed = hikari.Embed(title="ABSOLUTE ORDER: ALT ANALYSIS", color=0x990000)
-        embed.add_field(name="Subject Alpha", value=f"`{u1.username}`", inline=True)
-        embed.add_field(name="Subject Beta", value=f"`{u2.username}`", inline=True)
-
-        embed.add_field(
-            name="Overlap Intelligence",
-            value=f"Common Groups: `{results['common_groups_count']}`\nCommon Friends: `{results['common_friends_count']}`",
-            inline=False,
-        )
-
-        score = results["score"]
-        probability = (
-            "LOW"
-            if score < 10
-            else "MEDIUM"
-            if score < 30
-            else "HIGH"
-            if score < 60
-            else "CRITICAL"
-        )
-
-        embed.add_field(
-            name="Connection Probability",
-            value=f"`{probability}` (Score: {score})",
-            inline=False,
-        )
-        embed.set_footer(text="Zero has commanded: The truth is absolute.")
-
-        await interaction.edit_initial_response(embed=embed)
-    except Exception as e:
-        await app_commands.handle_error(
-            e, interaction, "absolute_order", shard, "Investigation"
-        )
-
-
-@app_commands.Command(context="Archive", intensity="low", requires_connection=False)
-async def archive_search(interaction: hikari.CommandInteraction, target: str):
-    """[HISTORY LOOKUP] Retrieve past usernames and profile data from the archives."""
-    await interaction.create_initial_response(
-        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
-    )
-    shard = await gUtils.shard_metrics(interaction)
-
-    try:
-        user_id = (
-            int(target)
-            if target.isdigit()
-            else (await RoModules.convert_to_id(target, shard))
-        )
-
-        info = await Archives.get_user_data(user_id)
-        history = await Archives.get_history(user_id)
-
-        embed = hikari.Embed(title=f"THE ARCHIVES: SUBJECT {user_id}", color=0x990000)
-
-        if info:
-            last_seen = info[1].strftime("%Y-%m-%d %H:%M:%S")
-            embed.description = f"**Current Alias**: `{info[0]}`\n**Last Observed**: `{last_seen}`\n**Status**: `{info[2]}`"
-        else:
-            embed.description = "No prior data exists in the archives for this subject."
-
-        if history:
-            history_str = "\n".join(
-                [f"`{h[0]}` (until {h[1].strftime('%Y-%m-%d')})" for h in history[:10]]
-            )
-            embed.add_field(
-                name="Previous Designations",
-                value=history_str or "No changes recorded.",
-            )
-
-        embed.set_footer(text="Absolute Order: History cannot be erased.")
-        await interaction.edit_initial_response(embed=embed)
-    except Exception as e:
-        await interaction.edit_initial_response(
-            content=f"Archive retrieval failed: {e}"
-        )
-
-
-@app_commands.Command(context="Tracker", intensity="high", requires_connection=True)
-async def fenrir_track(
-    interaction: hikari.CommandInteraction, target: str, channel_id: str = None
-):
-    """[ACTIVITY TRACKER] Monitor a user's online status and game activity."""
-    target_channel = int(channel_id) if channel_id else interaction.channel_id
-    await interaction.create_initial_response(
-        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
-    )
-    shard = await gUtils.shard_metrics(interaction)
-
-    try:
-        user_id = (
-            int(target)
-            if target.isdigit()
-            else (await RoModules.convert_to_id(target, shard))
-        )
-        await activity_tracker.add_target(user_id, target_channel)
-
-        embed = hikari.Embed(title="FENRIR DEPLOYED", color=0x990000)
-        embed.description = f"Fenrir is now tracking Subject `{user_id}`.\nIntel will be reported to <#{target_channel}>."
-        embed.set_footer(text="The Wolf scents its prey.")
-
-        await interaction.edit_initial_response(embed=embed)
-    except Exception as e:
-        await interaction.edit_initial_response(
-            content=f"Fenrir deployment failed: {e}"
-        )
-
-
-@app_commands.Command(context="Group", intensity="low", requires_connection=False)
-async def knightmare_intel(interaction: hikari.CommandInteraction, group_id: int):
-    """[GROUP ANALYSIS] Analyze a group's rank structure and hierarchy."""
-    await interaction.create_initial_response(
-        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
-    )
-
-    try:
-        # We'll just show current spy status or fetch roles
-        data = await Roquest.Roquest(
-            "GET", "groups", f"v1/groups/{group_id}/roles", shard_id=0
-        )
-        if data[0] != 200:
-            await interaction.edit_initial_response(
-                content="Intelligence retrieval failed."
-            )
-            return
-
-        embed = hikari.Embed(
-            title=f"KNIGHTMARE INTEL: Group {group_id} Roles", color=0x990000
-        )
-        roles = data[1].get("roles", [])
-        roles_str = "\n".join([f"`{r['name']}` (Rank {r['rank']})" for r in roles])
-        embed.description = f"**Tactical Heirarchy**:\n{roles_str}"
-
-        is_spying = group_id in group_spy.tracked_groups
-        embed.add_field(
-            name="Spy Status",
-            value="`ACTIVE`" if is_spying else "`INACTIVE`",
-            inline=True,
-        )
-
-        embed.set_footer(text="Zero's eyes are upon this hierarchy.")
-        await interaction.edit_initial_response(embed=embed)
-    except Exception as e:
-        await interaction.edit_initial_response(
-            content=f"Knightmare analysis failed: {e}"
-        )
-
-
-@app_commands.Command(
-    context="Investigation", intensity="high", requires_connection=False
-)
-async def sherlock_scan(interaction: hikari.CommandInteraction, username: str):
-    """[NETWORK SCAN] Search for a username across 100+ websites to find their digital footprint."""
-    await interaction.create_initial_response(
-        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
-    )
-
-    try:
-        results = await SherlockIntegration.scan_username(username)
-
-        embed = hikari.Embed(title=f"SHERLOCK SCAN: {username}", color=0x990000)
-
-        found = [f"[{p}]({u})" for p, u, exists in results if exists]
-        missing = [p for p, u, exists in results if not exists]
-
-        if found:
-            embed.add_field(
-                name="Manifestations (Found)", value="\n".join(found), inline=False
-            )
-        else:
-            embed.description = (
-                "No digital manifestations found within the immediate network."
-            )
-
-        if missing:
-            embed.add_field(
-                name="Void Zones (Not Found)", value=", ".join(missing), inline=False
-            )
-
-        embed.set_footer(text="Zero's network is vast. The subject has been mapped.")
-        await interaction.edit_initial_response(embed=embed)
-    except Exception as e:
-        await interaction.edit_initial_response(content=f"Sherlock scan failed: {e}")
-
-
-@app_commands.Command(
-    context="Investigation", intensity="high", requires_connection=False
-)
-async def absolute_friend_map(interaction: hikari.CommandInteraction, target: str):
-    """[NETWORK MAP] Map out a Roblox user's entire friend network."""
-    await interaction.create_initial_response(
-        response_type=hikari.ResponseType.DEFERRED_MESSAGE_CREATE
-    )
-    shard = await gUtils.shard_metrics(interaction)
-
-    try:
-        user_id = (
-            int(target)
-            if target.isdigit()
-            else (await RoModules.convert_to_id(target, shard))
-        )
-
-        associates = await Investigation.map_friends(user_id, shard)
-
-        embed = hikari.Embed(
-            title=f"ABSOLUTE ORDER: ASSOCIATE MAP ({user_id})", color=0x990000
-        )
-
-        if associates:
-            associates_str = "\n".join(
-                [f"`{a['name']}` ({a['id']})" for a in associates]
-            )
-            embed.description = f"**Identified Associates**:\n{associates_str}"
-        else:
-            embed.description = (
-                "The subject exists in isolation or has hidden their network."
-            )
-
-        embed.set_footer(text="The Black Knights have mapped the target's reach.")
-        await interaction.edit_initial_response(embed=embed)
-    except Exception as e:
-        await interaction.edit_initial_response(
-            content=f"Associate mapping failed: {e}"
-        )
-
-
 @app_commands.Command(context="User", intensity="high")
 async def whois(
     interaction: hikari.CommandInteraction, user: str, download: bool = False
@@ -915,9 +604,6 @@ async def whois(
         robloxbadges,
         email_verification,
     ) = await RoModules.get_full_player_profile(user.id, shard)
-    await Archives.update_user(
-        user.id, user.username, "Online" if user.online else "Offline"
-    )
     embed.set_thumbnail(user.thumbnail)
     embed.set_author(
         name=f"@{user.username} {'(' + user.nickname + ')' if user.username != user.nickname else ''}",
